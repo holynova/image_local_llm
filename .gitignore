@@ -20,6 +20,7 @@ Thumbs.db
 # Generated image outputs
 static/outputs/
 *.png
+!screenshot.png
 
 # IDE configuration folders
 .vscode/
