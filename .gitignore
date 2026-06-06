@@ -18,10 +18,8 @@ dist/
 Thumbs.db
 
 # Generated image outputs
+static/outputs/
 *.png
-!static/outputs/
-static/outputs/*
-!static/outputs/.gitkeep
 
 # IDE configuration folders
 .vscode/

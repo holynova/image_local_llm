@@ -15,70 +15,65 @@
   * 前端可批量输入几十甚至上百个提示词（每行一个）。
   * 网页提供 **Pause（暂停）**、**Resume（恢复）** 和 **Stop（中止）** 控制。
   * 采用了 `callback_on_step_end` 异常钩子，能在**推理步骤的中途瞬间中断 GPU 计算**，释放显存锁。
-* **前后端状态实时同步：** 即使刷新或重新打开网页，前台也能自动向后台拉取最新的生成队列、状态与画廊。
-* **Linear.app 暗黑科技美学：** 采用 Bento Box（便当盒）网格布局、Inter Display 字体栈、纯 SVG 极简线框图标、霓虹渐变发光，以及 snappy `250ms` 的贝塞尔微动效。
-* **实时开发者日志控制台：** 网页自带 monospace 单色命令台，输出任务排队、接口数据传输、耗时计时等详细日志。
+* **提示词前缀与后缀批量注入：** 新增前缀与后缀输入框，在进行批量任务时，会自动加到每一行提示词上，大幅减少手动输入常用词的繁琐操作。
+* **中英文多语言切换 (i18n)：** 支持中英文双语一键切换，偏好自动持久化在 `localStorage` 中。
+* **同一个提示词结果聚合 (Bento Gallery Group)：** 前端画廊按照提示词智能聚合，支持同一个提示词生成多张图片时在 UI 上清晰呈现出版本对比，卡片尺寸自适应响应式排列。
+* **智能快速重新生成 (插队优先)：** 
+  * 针对整组画廊（使用新随机种子）或单个缩略图/灯箱（使用固定种子）一键重新生成；
+  * 重生成的任务会自动插入队列的最前面 (`front: true`) 获得最高优先级执行，并通过 toast 通知进行视觉反馈。
+* **总进度与总任务计时器：** 提供 Linear 风格的渐变发光总进度条，以及总任务运行秒表计时器（防刷新缓存设计）。
+* **灯箱大图上一张/下一张切换：** 预览大图时，支持浮动按钮和键盘左右方向键（`ArrowLeft` / `ArrowRight`）无缝切换浏览上一张/下一张，元数据自动同步更新。
+* **右侧抽屉式日志控制台与等高布局：** 将系统日志收纳在右侧伸缩式抽屉中，展开平滑，且通过 `max-height` 对生成队列容器限高滚动，保证任务列表与左侧输入区等高美观。
+* **本地资源集成一键触达：** 
+  * **打开本地目录：** 自动在 Windows 资源管理器中弹出后端存放图片的本地 outputs 文件夹。
+  * **下载全部图片：** 后端实时打包 outputs 下的所有图片并作为 ZIP 压缩文件流式返回浏览器。
+
 
 ---
 
-## 🚀 本地运行指南
+## 🚀 本地极速运行指南 (Windows)
 
-### 1. 克隆项目与环境初始化
+为了简化安装流程，我们提供了自动化安装和运行脚本，可一次性完成所有配置：
 
-在项目根目录下创建并激活 Python 虚拟环境：
+### 1. 自动一键安装
+双击运行项目根目录下的 **[install.bat](file:///g:/code/image_local_llm/install.bat)**。该脚本将自动执行以下操作：
+1. 检测本地 Python 环境（推荐使用 Python 3.10 或 3.11）。
+2. 在项目根目录下创建 Python 虚拟环境 `venv` 并升级 pip。
+3. 自动配置支持 CUDA 12.8 的 PyTorch 环境（适配 RTX 50/40 等显卡，避免 Blackwell 架构等兼容问题）。
+4. 自动拉取最新的 `diffusers` 框架及相关网络库依赖。
+5. 自动运行 **[apply_patches.py](file:///g:/code/image_local_llm/apply_patches.py)** 修补 Windows 下的跨设备计算与 fp8 类型缺陷。
 
-```powershell
-# 创建虚拟环境
-python -m venv venv
+### 2. 启动服务与使用
+安装完成后，你可以选择在安装脚本中直接运行服务，或在以后双击运行 **[start_server.bat](file:///g:/code/image_local_llm/start_server.bat)**：
+* 首次启动时会自动下载并加载 unquantized BF16 版本的 `Tongyi-MAI/Z-Image-Turbo` 模型。
+* 首次权重加载完成后，控制台将输出 `Model loaded successfully into Hybrid CPU/GPU memory!`。
+* 打开浏览器访问：👉 **[http://127.0.0.1:8000](http://127.0.0.1:8000)**。
 
-# 激活虚拟环境 (Windows PowerShell)
-.\venv\Scripts\Activate.ps1
-```
+---
 
-### 2. 安装支持 CUDA 12.8 的 PyTorch
+## 🛠️ 手动运行指南 (供参考/高级用户)
 
-针对 NVIDIA RTX 50-系列（Blackwell 架构 `sm_120`）及旧款显卡，推荐使用 CUDA 12.8 支持的 PyTorch，以避免 `no kernel image is available` 错误：
+如果你想手动控制每一步，可按以下步骤操作：
 
-```powershell
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
-```
-
-### 3. 安装依赖库
-
-安装最新版 `diffusers`（目前 Z-Image 处于开发主分支）及其他组件：
-
-```powershell
-# 从源码安装最新 diffusers
-pip install git+https://github.com/huggingface/diffusers
-
-# 安装 transformers 和 web 框架依赖
-pip install transformers accelerate sentencepiece protobuf peft fastapi uvicorn requests
-```
-
-### 4. 运行环境修复补丁 (关键步骤)
-
-Windows 环境下的 PyTorch 会因为缺失某些 fp8 数据类型以及不支持跨设备 tensor 运算而导致报错或推理变慢。我们提供了一个自动补丁脚本，执行即可自动修复虚拟环境中对应的库代码：
-
-```powershell
-python apply_patches.py
-```
-
-*此脚本会自动对 `transformers` 的 fp8 导入语句，以及 `diffusers` 调度器/管道中的动态设备转换（`.to(device)`）打上补丁。*
-
-### 5. 启动 Studio 服务端
-
-```powershell
-python -m uvicorn server:app --host 127.0.0.1 --port 8000
-```
-
-* 服务端启动时会自动下载并加载 unquantized BF16 版本的 `Tongyi-MAI/Z-Image-Turbo` 模型。
-* 首次加载由于下载权重需要一定时间，请耐心等待控制台输出 `Model loaded successfully into Hybrid CPU/GPU memory!`。
-
-### 6. 使用客户端工作区
-
-打开浏览器访问以下链接即可开始使用：
-
-👉 **[http://127.0.0.1:8000](http://127.0.0.1:8000)**
+1. **环境初始化**：
+   ```powershell
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
+   ```
+2. **安装 PyTorch (CUDA 12.8)**：
+   ```powershell
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+   ```
+3. **安装依赖与修补补丁**：
+   ```powershell
+   pip install git+https://github.com/huggingface/diffusers
+   pip install transformers accelerate sentencepiece protobuf peft fastapi uvicorn requests
+   python apply_patches.py
+   ```
+4. **启动服务**：
+   ```powershell
+   python -m uvicorn server:app --host 127.0.0.1 --port 8000
+   ```
 
 ---
 

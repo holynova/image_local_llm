@@ -4,7 +4,10 @@ import uuid
 import asyncio
 import torch
 from fastapi import FastAPI, HTTPException, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
+import zipfile
+import io
+
 from pydantic import BaseModel, Field
 from diffusers import ZImagePipeline
 
@@ -39,6 +42,7 @@ class QueueAddRequest(BaseModel):
     width: int = Field(default=1024)
     steps: int = Field(default=9)
     guidance_scale: float = Field(default=0.0)
+    front: bool = Field(default=False)
 
 db_queue = []  # List of QueueItem
 queue_status = "idle"  # "idle", "running", "paused"
@@ -80,6 +84,7 @@ async def queue_worker():
             
         # Define synchronous inference worker to run in a thread pool
         def inference_wrapper():
+            active_item.elapsed = round(time.time() - start_time, 1)
             # Free VRAM cache before generation
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -91,6 +96,7 @@ async def queue_worker():
                 global cancel_flag
                 if cancel_flag:
                     raise RuntimeError("cancelled")
+                active_item.elapsed = round(time.time() - start_time, 1)
                 return callback_kwargs
             
             image = pipe(
@@ -206,8 +212,13 @@ async def add_to_queue(req: QueueAddRequest):
             seed=req.seed,
             status="pending"
         )
-        db_queue.append(item)
         added_items.append(item)
+    
+    if req.front:
+        for item in reversed(added_items):
+            db_queue.insert(0, item)
+    else:
+        db_queue.extend(added_items)
     
     # Auto-start queue if idle
     if queue_status == "idle":
@@ -249,6 +260,39 @@ async def clear_queue():
     db_queue = []
     queue_status = "idle"
     return {"success": True, "status": queue_status}
+
+@app.get("/api/outputs/zip")
+async def download_all_images():
+    global OUTPUTS_DIR
+    png_files = [f for f in os.listdir(OUTPUTS_DIR) if f.endswith(".png")]
+    if not png_files:
+        raise HTTPException(status_code=400, detail="No images found to download")
+    
+    zip_io = io.BytesIO()
+    with zipfile.ZipFile(zip_io, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for filename in png_files:
+            filepath = os.path.join(OUTPUTS_DIR, filename)
+            zip_file.write(filepath, filename)
+            
+    zip_io.seek(0)
+    return StreamingResponse(
+        zip_io,
+        media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=all_images.zip"}
+    )
+
+@app.post("/api/open-folder")
+async def open_local_folder():
+    global OUTPUTS_DIR
+    abs_path = os.path.abspath(OUTPUTS_DIR)
+    if os.path.exists(abs_path):
+        try:
+            os.startfile(abs_path)
+            return {"success": True, "path": abs_path}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to open folder: {str(e)}")
+    else:
+        raise HTTPException(status_code=404, detail="Outputs directory does not exist")
 
 # Static files routes
 @app.get("/")

@@ -28,7 +28,8 @@
                 </div>
             </div>
             <div class="status-panel">
-                <span class="status-indicator" id="statusIndicator">Connecting...</span>
+                <button id="langToggleBtn" class="lang-toggle-btn">EN</button>
+                <span class="status-indicator" id="statusIndicator" data-i18n="statusConnecting">Connecting...</span>
             </div>
         </header>
 
@@ -42,40 +43,83 @@
                             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                             <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                         </svg>
-                        <h2>Prompt Inputs</h2>
+                        <h2 data-i18n="promptInputsTitle">Prompt Inputs</h2>
                     </div>
-                    <span class="micro-badge">Bulk Mode</span>
+                    <span class="micro-badge" data-i18n="bulkMode">Bulk Mode</span>
                 </div>
                 <div class="card-body">
                     <div class="input-group">
-                        <label for="promptTextArea">Prompts (One prompt per line)</label>
+                        <label for="promptTextArea" data-i18n="promptsLabel">Prompts (One prompt per line)</label>
                         <textarea id="promptTextArea" placeholder="Beijing Temple of Heaven, cute 3D cartoon style...&#10;Shanghai Oriental Pearl Tower, cute 3D chibi style...&#10;Tokyo Tower, pop mart style resin refrigerator magnet..."></textarea>
+                    </div>
+                    
+                    <!-- Prompt Extras (Prefix / Suffix) -->
+                    <div class="prompt-extras-grid">
+                        <div class="input-field-inline">
+                            <label for="promptPrefixInput" data-i18n="prefixLabel">Prompt Prefix</label>
+                            <input type="text" id="promptPrefixInput" placeholder="e.g. Masterpiece, best quality,">
+                        </div>
+                        <div class="input-field-inline">
+                            <label for="promptSuffixInput" data-i18n="suffixLabel">Prompt Suffix</label>
+                            <input type="text" id="promptSuffixInput" placeholder="e.g. , 8k resolution, detailed">
+                        </div>
+                    </div>
+                    
+                    <!-- Prompt History Component -->
+                    <div class="prompt-history-section" id="promptHistorySection">
+                        <div class="history-header">
+                            <span class="history-title">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 8v4l3 3"></path>
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                </svg>
+                                <span data-i18n="promptHistory">Prompt History</span>
+                            </span>
+                            <button id="clearHistoryBtn" class="btn-clear-history" title="Clear History" data-i18n-title="clearHistoryTitle">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="history-list" id="historyList">
+                            <div class="history-empty" data-i18n="historyEmpty">No prompt history yet.</div>
+                        </div>
                     </div>
 
                     <!-- Config Card -->
-                    <div class="config-pane">
-                        <h3>Generation Settings</h3>
+                    <div class="config-pane" id="configPane">
+                        <div class="config-header" id="configHeader">
+                            <h3 data-i18n="genSettingsTitle">Generation Settings</h3>
+                            <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
                         <div class="config-grid">
                             <div class="input-field">
-                                <label for="resolutionSelect">Resolution</label>
+                                <label for="resolutionSelect" data-i18n="resolutionLabel">Resolution</label>
                                 <select id="resolutionSelect">
-                                    <option value="1024x1024" selected>1024 × 1024 (Square)</option>
-                                    <option value="768x1024">768 × 1024 (Portrait)</option>
-                                    <option value="1024x768">1024 × 768 (Landscape)</option>
-                                    <option value="512x512">512 × 512 (Fast draft)</option>
+                                    <option value="1024x1024" data-i18n="resolutionOptionSquare" selected>1024 × 1024 (Square)</option>
+                                    <option value="768x1024" data-i18n="resolutionOptionPortrait">768 × 1024 (Portrait)</option>
+                                    <option value="1024x768" data-i18n="resolutionOptionLandscape">1024 × 768 (Landscape)</option>
+                                    <option value="512x512" data-i18n="resolutionOptionFast">512 × 512 (Fast draft)</option>
                                 </select>
+                                <span class="field-desc" data-i18n="descResolution">Z-Image-Turbo is optimized for 1024x1024. Smaller dimensions run faster.</span>
                             </div>
                             <div class="input-field">
-                                <label for="stepsInput">Inference Steps</label>
+                                <label for="stepsInput" data-i18n="stepsLabel">Inference Steps</label>
                                 <input type="number" id="stepsInput" value="9" min="1" max="50">
+                                <span class="field-desc" data-i18n="descSteps">Z-Image-Turbo is distilled: use 9 steps. Higher values do not help quality.</span>
                             </div>
                             <div class="input-field">
-                                <label for="guidanceInput">Guidance Scale</label>
+                                <label for="guidanceInput" data-i18n="guidanceLabel">Guidance Scale</label>
                                 <input type="number" id="guidanceInput" value="0.0" min="0.0" max="10.0" step="0.5">
+                                <span class="field-desc" data-i18n="descGuidance">Must be 0.0. Higher values will corrupt or black out the image.</span>
                             </div>
                             <div class="input-field">
-                                <label for="seedInput">Seed (-1 for random)</label>
+                                <label for="seedInput" data-i18n="seedLabel">Seed (-1 for random)</label>
                                 <input type="number" id="seedInput" value="-1" min="-1">
+                                <span class="field-desc" data-i18n="descSeed">Set to -1 for random. Use a fixed integer to reproduce the composition.</span>
                             </div>
                         </div>
                     </div>
@@ -87,9 +131,9 @@
                                 <line x1="22" y1="2" x2="11" y2="13"></line>
                                 <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                             </svg>
-                            Add to Queue
+                            <span data-i18n="addToQueue">Add to Queue</span>
                         </button>
-                        <button id="clearInputsBtn" class="btn secondary-btn">
+                        <button id="clearInputsBtn" class="btn secondary-btn" data-i18n="clearInput">
                             Clear Input
                         </button>
                     </div>
@@ -106,23 +150,57 @@
                                 <circle cx="12" cy="12" r="10"></circle>
                                 <polyline points="12 6 12 12 16 14"></polyline>
                             </svg>
-                            <h2>Generation Queue</h2>
+                            <h2 data-i18n="genQueueTitle">Generation Queue</h2>
                             <span class="micro-badge" id="queueCountBadge">0 Active</span>
-                            <span class="badge-status badge-idle" id="queueStatusBadge">Idle</span>
+                            <span class="badge-status badge-idle" id="queueStatusBadge" data-i18n="queueStatusIdle">Idle</span>
                         </div>
                         <div class="queue-controls">
-                            <button id="pauseQueueBtn" class="ctrl-btn" title="Pause Queue" style="display: none;">⏸️ Pause</button>
-                            <button id="resumeQueueBtn" class="ctrl-btn" title="Resume Queue" style="display: none;">▶️ Resume</button>
-                            <button id="stopQueueBtn" class="ctrl-btn danger" title="Abort Active Task & Pause" style="display: none;">⏹️ Stop</button>
-                            <button id="clearQueueBtn" class="ctrl-btn" title="Clear Entire Queue History">🗑️ Clear</button>
+                            <button id="pauseQueueBtn" class="ctrl-btn" title="Pause Queue" data-i18n-title="titlePause" style="display: none;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="6" y="4" width="4" height="16"></rect>
+                                    <rect x="14" y="4" width="4" height="16"></rect>
+                                </svg>
+                            </button>
+                            <button id="resumeQueueBtn" class="ctrl-btn" title="Resume Queue" data-i18n-title="titleResume" style="display: none;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                                </svg>
+                            </button>
+                            <button id="stopQueueBtn" class="ctrl-btn danger" title="Abort Active Task & Pause" data-i18n-title="titleStop" style="display: none;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                                </svg>
+                            </button>
+                            <button id="clearQueueBtn" class="ctrl-btn" title="Clear Entire Queue History" data-i18n-title="titleClearQueue">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polyline points="3 6 5 6 21 6"></polyline>
+                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                    <line x1="10" y1="11" x2="10" y2="17"></line>
+                                    <line x1="14" y1="11" x2="14" y2="17"></line>
+                                </svg>
+                            </button>
                         </div>
                     </div>
                     <div class="card-body queue-container">
+                        <!-- Progress Bar Component -->
+                        <div class="queue-progress-container" id="queueProgressContainer" style="display: none;">
+                            <div class="progress-info">
+                                <span class="progress-label">
+                                    <span data-i18n="totalProgress">Total Progress</span>
+                                    <span id="queueTotalTimer" class="total-timer" style="display: none;">⏱️ 00:00</span>
+                                </span>
+                                <span class="progress-value" id="queueProgressValue">0 / 0 (0%)</span>
+                            </div>
+                            <div class="progress-bar-track">
+                                <div class="progress-bar-fill" id="queueProgressBarFill" style="width: 0%;"></div>
+                            </div>
+                        </div>
+                        
                         <div class="queue-header-row">
-                            <span class="col-num">#</span>
-                            <span class="col-prompt">Prompt</span>
-                            <span class="col-status">Status</span>
-                            <span class="col-time">Time</span>
+                            <span class="col-num" data-i18n="colNum">#</span>
+                            <span class="col-prompt" data-i18n="colPrompt">Prompt</span>
+                            <span class="col-status" data-i18n="colStatus">Status</span>
+                            <span class="col-time" data-i18n="colTime">Time</span>
                         </div>
                         <div class="queue-list" id="queueList">
                             <div class="empty-state">
@@ -133,24 +211,7 @@
                     </div>
                 </section>
 
-                <!-- Logs Panel -->
-                <section class="bento-card logs-panel">
-                    <div class="card-header">
-                        <div class="header-title">
-                            <svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="4 17 10 11 4 5"></polyline>
-                                <line x1="12" y1="19" x2="20" y2="19"></line>
-                            </svg>
-                            <h2>System Logs</h2>
-                        </div>
-                        <button id="clearLogsBtn" class="btn-clear-logs">🗑️ Clear</button>
-                    </div>
-                    <div class="card-body log-container">
-                        <div class="log-window" id="logWindow">
-                            <!-- Logs will be populated here -->
-                        </div>
-                    </div>
-                </section>
+
             </div>
         </main>
 
@@ -163,10 +224,30 @@
                         <circle cx="8.5" cy="8.5" r="1.5"></circle>
                         <polyline points="21 15 16 10 5 21"></polyline>
                     </svg>
-                    <h2>Generated Gallery</h2>
+                    <h2 data-i18n="genGalleryTitle">Generated Gallery</h2>
                 </div>
                 <div class="gallery-actions">
-                    <button id="clearGalleryBtn" class="btn secondary-btn">🗑️ Clear Gallery</button>
+                    <button id="openFolderBtn" class="btn secondary-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span data-i18n="openFolderBtn">Open Folder</span>
+                    </button>
+                    <button id="downloadAllBtn" class="btn secondary-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        <span data-i18n="downloadAllBtn">Download All</span>
+                    </button>
+                    <button id="clearGalleryBtn" class="btn secondary-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <span data-i18n="clearGalleryBtn">Clear Gallery</span>
+                    </button>
                 </div>
             </div>
             <div class="card-body">
@@ -183,37 +264,104 @@
             <span class="lightbox-close" id="lightboxClose">&times;</span>
             <div class="lightbox-body">
                 <div class="lightbox-image-container">
+                    <button id="lightboxPrevBtn" class="lightbox-nav-btn prev-btn" title="Previous Image">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
                     <img id="lightboxImg" src="" alt="Full size preview">
+                    <button id="lightboxNextBtn" class="lightbox-nav-btn next-btn" title="Next Image">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                    </button>
                 </div>
+
                 <div class="lightbox-meta">
-                    <h3>Metadata</h3>
+                    <h3 data-i18n="lightboxTitle">Metadata</h3>
                     <div class="meta-item">
-                        <strong>Prompt:</strong>
+                        <strong data-i18n="metaPrompt">Prompt:</strong>
                         <p id="metaPrompt"></p>
                     </div>
                     <div class="meta-grid">
                         <div class="meta-item">
-                            <strong>Resolution:</strong>
+                            <strong data-i18n="metaResolution">Resolution:</strong>
                             <p id="metaResolution"></p>
                         </div>
                         <div class="meta-item">
-                            <strong>Steps:</strong>
+                            <strong data-i18n="metaSteps">Steps:</strong>
                             <p id="metaSteps"></p>
                         </div>
                         <div class="meta-item">
-                            <strong>Seed:</strong>
+                            <strong data-i18n="metaSeed">Seed:</strong>
                             <p id="metaSeed"></p>
                         </div>
                         <div class="meta-item">
-                            <strong>Time taken:</strong>
+                            <strong data-i18n="metaTime">Time taken:</strong>
                             <p id="metaTime"></p>
                         </div>
                     </div>
-                    <a id="lightboxDownloadBtn" href="" download class="btn primary-btn download-btn">💾 Download Original</a>
+                    <div class="lightbox-actions">
+                        <a id="lightboxDownloadBtn" href="" download class="btn primary-btn download-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="7 10 12 15 17 10"></polyline>
+                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            <span data-i18n="downloadOriginal">Download Original</span>
+                        </a>
+                        <button id="lightboxRegenBtn" class="btn secondary-btn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 4v6h-6"></path>
+                                <path d="M1 20v-6h6"></path>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                            <span data-i18n="regenerateBtn">Regenerate</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+    
+    <!-- Logs Drawer -->
+    <div class="logs-drawer" id="logsDrawer">
+        <!-- Vertical handle visible when collapsed -->
+        <div class="drawer-handle" id="drawerHandle" title="Toggle System Logs">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+            </svg>
+        </div>
+        <div class="drawer-header" id="drawerHeader">
+            <div class="header-title">
+                <svg class="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="4 17 10 11 4 5"></polyline>
+                    <line x1="12" y1="19" x2="20" y2="19"></line>
+                </svg>
+                <h3 data-i18n="sysLogsTitle">System Logs</h3>
+            </div>
+            <div class="drawer-controls">
+                <button id="clearLogsBtn" class="btn-clear-logs" title="Clear Logs" data-i18n-title="clearLogsTitle">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
+                <button class="btn-toggle-drawer" id="toggleDrawerBtn">
+                    <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="18 15 12 9 6 15"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        <div class="drawer-body">
+            <div class="log-window" id="logWindow"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
     
     <script src="index.js"></script>
 </body>
