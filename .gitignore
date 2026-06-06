@@ -1,0 +1,31 @@
+# Python virtual environment
+venv/
+.venv/
+env/
+
+# Python caching & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller & build outputs
+*.spec
+build/
+dist/
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Generated image outputs
+*.png
+!static/outputs/
+static/outputs/*
+!static/outputs/.gitkeep
+
+# IDE configuration folders
+.vscode/
+.idea/
+
+# HF Cache
+.cache/
