@@ -1,31 +1,54 @@
 :root {
-    --bg: #000212;
-    --surface-base: #080a10;
-    --surface-raised: #12131e;
-    --text-primary: #f0f3f6;
-    --text-secondary: #8b949e;
-    --accent-purple: #5e6ad2;
-    --accent-purple-glow: rgba(94, 106, 210, 0.15);
+    /* Tailwind CSS Design System Variables */
+    --bg-slate-900: #0f172a;
+    --bg-slate-950: #020617;
+    --text-slate-50: #f8fafc;
+    --text-slate-400: #94a3b8;
+    --indigo-500: #6366f1;
+    --indigo-600: #4f46e5;
+    --sky-400: #38bdf8;
+    --emerald-500: #10b981;
+    --amber-500: #f59e0b;
+    --rose-500: #f43f5e;
+
+    /* Semantic Variables */
+    --bg: var(--bg-slate-900);
+    --surface-base: var(--bg-slate-950);
+    --surface-raised: var(--bg-slate-900);
+    --text-primary: var(--text-slate-50);
+    --text-secondary: var(--text-slate-400);
     
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(255, 255, 255, 0.2);
+    --accent-purple: var(--indigo-500);
+    --accent-purple-glow: rgba(99, 102, 241, 0.15);
+    --accent-hover: var(--indigo-600);
+    --accent-sky: var(--sky-400);
     
-    --success: #4cad6b;
-    --warning: #f5a623;
-    --danger: #f44336;
+    --border-subtle: #334155;
+    --border-hover: #475569;
     
-    --sans-display: 'Inter', system-ui, -apple-system, sans-serif;
-    --sans-text: 'Inter', system-ui, -apple-system, sans-serif;
-    --mono: ui-monospace, SF Mono, Menlo, Monaco, Consolas, monospace;
+    --success: var(--emerald-500);
+    --warning: var(--amber-500);
+    --danger: var(--rose-500);
     
-    --radius-bento: 12px;
-    --radius-inner: 8px;
-    --radius-control: 8px;
-    --radius-badge: 6px;
+    --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     
-    --transition-snappy: all 250ms cubic-bezier(0.16, 1, 0.3, 1);
-    --shadow-glow: 0 0 30px rgba(94, 106, 210, 0.12);
+    --sans-display: var(--font-sans);
+    --sans-text: var(--font-sans);
+    --mono: var(--font-mono);
+    
+    --radius-bento: 12px;        /* rounded-xl */
+    --radius-inner: 8px;         /* rounded-lg */
+    --radius-control: 6px;       /* rounded-md */
+    --radius-badge: 999px;       /* rounded-full */
+    
+    --transition-snappy: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slide: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    
+    --shadow-default: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
+    --shadow-glow: 0 10px 15px -3px rgba(99, 102, 241, 0.25), 0 4px 6px -4px rgba(99, 102, 241, 0.25);
 }
+
 
 * {
     box-sizing: border-box;
@@ -72,7 +95,7 @@ body {
     width: 100%;
     max-width: 1400px;
     height: 400px;
-    background-image: radial-gradient(circle at top, rgba(94, 106, 210, 0.15) 0%, transparent 60%);
+    background-image: radial-gradient(circle at top, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
     z-index: 0;
     pointer-events: none;
 }
@@ -93,7 +116,7 @@ body {
     top: 0;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    background: rgba(8, 10, 16, 0.8);
+    background: rgba(2, 6, 23, 0.8);
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-bento);
     padding: 16px 24px;
@@ -111,8 +134,9 @@ body {
 
 .logo-icon {
     color: var(--accent-purple);
-    filter: drop-shadow(0 0 8px rgba(94, 106, 210, 0.4));
+    filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.4));
 }
+
 
 .logo-text {
     display: flex;
@@ -266,11 +290,12 @@ body {
     letter-spacing: 0.05em;
     text-transform: uppercase;
     color: var(--accent-purple);
-    background: rgba(94, 106, 210, 0.1);
-    border: 1px solid rgba(94, 106, 210, 0.2);
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
     padding: 3px 8px;
     border-radius: var(--radius-badge);
 }
+
 
 /* Form Styles */
 .input-group {
@@ -304,8 +329,9 @@ textarea {
 textarea:focus {
     border-color: var(--accent-purple);
     background: rgba(255, 255, 255, 0.03);
-    box-shadow: 0 0 20px rgba(94, 106, 210, 0.1);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
 }
+
 
 /* Config Pane */
 .config-pane {
@@ -356,7 +382,7 @@ select, input[type="number"] {
 
 select:focus, input[type="number"]:focus {
     border-color: var(--accent-purple);
-    box-shadow: 0 0 10px rgba(94, 106, 210, 0.1);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.1);
 }
 
 /* Button UI Controls */
@@ -379,23 +405,26 @@ select:focus, input[type="number"]:focus {
     justify-content: center;
     gap: 8px;
     transition: var(--transition-snappy);
+    white-space: nowrap;
 }
+
 
 .primary-btn {
     background: var(--accent-purple);
     color: var(--text-primary);
-    box-shadow: 0 4px 12px rgba(94, 106, 210, 0.2);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
 }
 
 .primary-btn:hover {
-    background: #6e7be2;
+    background: var(--accent-hover);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(94, 106, 210, 0.35);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
 }
 
 .primary-btn:active {
     transform: translateY(0);
 }
+
 
 .secondary-btn {
     background: rgba(255, 255, 255, 0.03);
@@ -453,7 +482,7 @@ select:focus, input[type="number"]:focus {
 }
 
 .queue-row.generating {
-    background: rgba(94, 106, 210, 0.04);
+    background: rgba(99, 102, 241, 0.04);
     border-left: 2px solid var(--accent-purple);
 }
 
@@ -476,9 +505,10 @@ select:focus, input[type="number"]:focus {
 }
 
 .badge-pending { background: rgba(255, 255, 255, 0.04); color: var(--text-secondary); }
-.badge-generating { background: rgba(94, 106, 210, 0.1); color: var(--accent-purple); animation: breath 2s infinite ease-in-out; }
-.badge-completed { background: rgba(76, 173, 107, 0.1); color: var(--success); }
-.badge-failed { background: rgba(244, 67, 54, 0.1); color: var(--danger); }
+.badge-generating { background: rgba(99, 102, 241, 0.15); color: var(--accent-purple); animation: breath 2s infinite ease-in-out; }
+.badge-completed { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+.badge-failed { background: rgba(244, 63, 94, 0.1); color: var(--danger); }
+
 
 /* Empty state */
 .empty-state {
@@ -779,7 +809,7 @@ select:focus, input[type="number"]:focus {
     transform: translateY(-50%);
     width: 44px;
     height: 44px;
-    background: rgba(8, 10, 16, 0.6);
+    background: rgba(2, 6, 23, 0.6);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid var(--border-subtle);
@@ -795,11 +825,12 @@ select:focus, input[type="number"]:focus {
 }
 
 .lightbox-nav-btn:hover {
-    background: rgba(94, 106, 210, 0.85);
+    background: rgba(99, 102, 241, 0.85);
     color: var(--text-primary);
     border-color: var(--accent-purple);
-    box-shadow: 0 0 15px rgba(94, 106, 210, 0.5);
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
 }
+
 
 .lightbox-nav-btn:disabled {
     opacity: 0.15;
@@ -873,12 +904,13 @@ select:focus, input[type="number"]:focus {
     50% { opacity: 1; }
 }
 
-/* Gallery Action Layout */
 .gallery-actions {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-wrap: wrap;
 }
+
 
 /* Parameter Descriptions */
 .field-desc {
@@ -979,10 +1011,11 @@ select:focus, input[type="number"]:focus {
 }
 
 .history-item:hover {
-    background: rgba(94, 106, 210, 0.08);
-    border-color: rgba(94, 106, 210, 0.3);
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.3);
     color: var(--accent-purple);
 }
+
 
 .history-empty {
     font-size: 11px;
@@ -1114,8 +1147,9 @@ select:focus, input[type="number"]:focus {
 
 .btn-regenerate-group:hover {
     color: var(--accent-purple);
-    background: rgba(94, 106, 210, 0.1);
+    background: rgba(99, 102, 241, 0.1);
 }
+
 
 .group-images-grid {
     display: grid;
@@ -1197,8 +1231,8 @@ select:focus, input[type="number"]:focus {
     font-size: 11px;
     font-weight: 700;
     color: var(--accent-purple);
-    background: rgba(94, 106, 210, 0.1);
-    border: 1px solid rgba(94, 106, 210, 0.2);
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
     padding: 2px 6px;
     border-radius: 4px;
     margin-left: 8px;
@@ -1207,6 +1241,7 @@ select:focus, input[type="number"]:focus {
     display: inline-block;
 }
 
+
 /* Right Side Logs Drawer */
 .logs-drawer {
     position: fixed;
@@ -1214,7 +1249,7 @@ select:focus, input[type="number"]:focus {
     right: -380px; /* Hidden off-screen by default */
     width: 380px;
     height: 100vh;
-    background: rgba(8, 10, 16, 0.98);
+    background: rgba(2, 6, 23, 0.98);
     border-left: 1px solid var(--border-subtle);
     box-shadow: -10px 0 40px rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(20px);
@@ -1236,7 +1271,7 @@ select:focus, input[type="number"]:focus {
     transform: translateY(-50%);
     width: 40px;
     height: 100px;
-    background: rgba(8, 10, 16, 0.98);
+    background: rgba(2, 6, 23, 0.98);
     border: 1px solid var(--border-subtle);
     border-right: none;
     border-radius: 8px 0 0 8px;
@@ -1248,6 +1283,7 @@ select:focus, input[type="number"]:focus {
     transition: var(--transition-snappy);
     z-index: 901;
 }
+
 
 .drawer-handle:hover {
     color: var(--text-primary);
@@ -1369,8 +1405,9 @@ select:focus, input[type="number"]:focus {
 
 .input-field-inline input[type="text"]:focus {
     border-color: var(--accent-purple);
-    box-shadow: 0 0 10px rgba(94, 106, 210, 0.1);
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.1);
 }
+
 
 /* Collapsible Settings Header */
 .config-header {
@@ -1411,7 +1448,7 @@ select:focus, input[type="number"]:focus {
 }
 
 .toast {
-    background: rgba(8, 10, 16, 0.9);
+    background: rgba(2, 6, 23, 0.9);
     border: 1px solid var(--accent-purple);
     border-radius: var(--radius-badge);
     padding: 12px 18px;
@@ -1435,8 +1472,9 @@ select:focus, input[type="number"]:focus {
 
 .toast.success {
     border-color: var(--success);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(76, 173, 107, 0.15);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.15);
 }
+
 
 .toast.success svg {
     color: var(--success);
