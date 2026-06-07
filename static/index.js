@@ -139,6 +139,14 @@ const TRANSLATIONS = {
         confirmRestart: "Restart the server? Ongoing generation will be interrupted.",
         toastRestarting: "Server is restarting, please wait...",
         toastRestartDone: "Server restarted successfully!",
+
+        // Stop
+        stopServer: "Stop",
+        titleStopServer: "Stop Server",
+        statusStopping: "Stopping...",
+        confirmStop: "Stop the server? The application will close and you will need to start it manually.",
+        toastStopping: "Server is shutting down...",
+        toastStopped: "Server has stopped.",
     },
     zh: {
         title: "Z-Image-Turbo 工作区",
@@ -268,6 +276,14 @@ const TRANSLATIONS = {
         confirmRestart: "确定重启服务吗？正在进行的生成任务将中断。",
         toastRestarting: "服务正在重启，请稍候...",
         toastRestartDone: "服务已成功重启！",
+
+        // Stop
+        stopServer: "停止",
+        titleStopServer: "停止服务",
+        statusStopping: "停止中...",
+        confirmStop: "确定停止服务吗？服务停止后将无法在网页上重新启动，需要手动运行脚本启动。",
+        toastStopping: "服务正在关闭...",
+        toastStopped: "服务已停止。",
     }
 };
 
@@ -502,6 +518,12 @@ function setupEventListeners() {
         restartServerBtn.addEventListener('click', handleRestartServer);
     }
 
+    // Stop Server Button
+    const stopServerBtn = document.getElementById('stopServerBtn');
+    if (stopServerBtn) {
+        stopServerBtn.addEventListener('click', handleStopServer);
+    }
+
     // Gallery Local Actions
     const openFolderBtn = document.getElementById('openFolderBtn');
     if (openFolderBtn) {
@@ -727,6 +749,43 @@ async function handleRestartServer() {
             pollQueueInterval = setInterval(syncQueueState, 1000);
             addLog(currentLang === 'zh' ? '重启超时，请手动检查服务状态。' : 'Restart timeout. Please check server manually.', 'error');
         }
+    }, 1000);
+}
+
+// Stop the server process
+async function handleStopServer() {
+    if (!confirm(TRANSLATIONS[currentLang].confirmStop)) return;
+
+    const btn = document.getElementById('stopServerBtn');
+    const btnSpan = btn ? btn.querySelector('span') : null;
+
+    if (btn) {
+        btn.disabled = true;
+    }
+    if (btnSpan) btnSpan.textContent = TRANSLATIONS[currentLang].statusStopping;
+
+    // Update status indicator
+    statusIndicator.className = 'status-indicator status-offline';
+    statusIndicator.textContent = TRANSLATIONS[currentLang].statusStopping;
+
+    showToast(TRANSLATIONS[currentLang].toastStopping, 'warning');
+    addLog(TRANSLATIONS[currentLang].toastStopping, 'system');
+
+    // Stop existing polling loops
+    if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
+    if (pollQueueInterval) { clearInterval(pollQueueInterval); pollQueueInterval = null; }
+
+    try {
+        await fetch('/api/shutdown', { method: 'POST' });
+    } catch (_) {
+        // Connection drop is expected
+    }
+
+    // After shutdown, set final states
+    setTimeout(() => {
+        showToast(TRANSLATIONS[currentLang].toastStopped, 'error');
+        statusIndicator.textContent = TRANSLATIONS[currentLang].statusOffline;
+        addLog(TRANSLATIONS[currentLang].toastStopped, 'system');
     }, 1000);
 }
 

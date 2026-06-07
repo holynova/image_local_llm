@@ -991,10 +991,41 @@ select:focus, input[type="number"]:focus {
     animation: spin 1s linear infinite;
 }
 
+/* Stop Server Button */
+.stop-server-btn {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 50px;
+    margin-right: 10px;
+    transition: var(--transition-snappy);
+    outline: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.stop-server-btn:hover {
+    background: rgba(244, 63, 94, 0.08);
+    color: var(--danger);
+    border-color: rgba(244, 63, 94, 0.35);
+}
+
+.stop-server-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 @keyframes spin {
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
 }
+
 
 /* Prompt History Section */
 .prompt-history-section {

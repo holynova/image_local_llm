@@ -261,6 +261,15 @@ async def restart_server():
     asyncio.create_task(_do_restart())
     return {"success": True, "message": "Server is restarting..."}
 
+@app.post("/api/shutdown")
+async def shutdown_server():
+    """Shut down the server process."""
+    async def _do_shutdown():
+        await asyncio.sleep(0.6)  # Give time for HTTP response to be flushed
+        os._exit(0)
+    asyncio.create_task(_do_shutdown())
+    return {"success": True, "message": "Server is shutting down..."}
+
 # Queue Management APIs
 @app.get("/api/queue")
 async def get_queue():
