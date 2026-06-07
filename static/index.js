@@ -7,6 +7,7 @@ let statusInterval = null;
 let pollQueueInterval = null;
 let activeLightboxItem = null; // Track currently open image in lightbox
 let queueTimerInterval = null;
+let galleryFilter = 'all'; // 'all' | 'liked' | 'disliked' | 'hide-disliked'
 
 // Translations Dictionary and State
 const TRANSLATIONS = {
@@ -114,6 +115,30 @@ const TRANSLATIONS = {
         titleResume: "Resume Queue",
         titleStop: "Abort Active Task & Pause",
         titleClearQueue: "Clear Entire Queue History",
+        
+        // Task row management
+        btnDelete: "Remove task",
+        btnSkip: "Skip task",
+        btnMoveTop: "Move to front",
+        toastDeleted: "Task removed from queue.",
+        toastSkipped: "Task skipped.",
+        toastMovedTop: "Task moved to front of queue.",
+        statusSkipped: "Skipped",
+
+        // Rating & Filter
+        filterLabel: "Filter",
+        filterAll: "All",
+        filterLiked: "Liked",
+        filterDisliked: "Disliked",
+        filterHideDisliked: "Hide Disliked",
+
+        // Restart
+        restartServer: "Restart",
+        titleRestartServer: "Restart Server",
+        statusRestarting: "Restarting...",
+        confirmRestart: "Restart the server? Ongoing generation will be interrupted.",
+        toastRestarting: "Server is restarting, please wait...",
+        toastRestartDone: "Server restarted successfully!",
     },
     zh: {
         title: "Z-Image-Turbo 工作区",
@@ -219,6 +244,30 @@ const TRANSLATIONS = {
         titleResume: "恢复队列",
         titleStop: "终止当前任务并暂停",
         titleClearQueue: "清空整个队列历史",
+        
+        // Task row management
+        btnDelete: "删除任务",
+        btnSkip: "跳过任务",
+        btnMoveTop: "置顶任务",
+        toastDeleted: "任务已从队列中移除。",
+        toastSkipped: "任务已跳过。",
+        toastMovedTop: "任务已移到队列最前面。",
+        statusSkipped: "已跳过",
+
+        // Rating & Filter
+        filterLabel: "过滤",
+        filterAll: "全部",
+        filterLiked: "点赞的",
+        filterDisliked: "点踩的",
+        filterHideDisliked: "隐藏点踩",
+
+        // Restart
+        restartServer: "重启",
+        titleRestartServer: "重启服务",
+        statusRestarting: "重启中...",
+        confirmRestart: "确定重启服务吗？正在进行的生成任务将中断。",
+        toastRestarting: "服务正在重启，请稍候...",
+        toastRestartDone: "服务已成功重启！",
     }
 };
 
@@ -447,6 +496,12 @@ function setupEventListeners() {
         });
     }
 
+    // Restart Server Button
+    const restartServerBtn = document.getElementById('restartServerBtn');
+    if (restartServerBtn) {
+        restartServerBtn.addEventListener('click', handleRestartServer);
+    }
+
     // Gallery Local Actions
     const openFolderBtn = document.getElementById('openFolderBtn');
     if (openFolderBtn) {
@@ -460,6 +515,16 @@ function setupEventListeners() {
 
     // Add prompts to queue
     addToQueueBtn.addEventListener('click', handleAddToQueue);
+
+    // Gallery filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            galleryFilter = btn.dataset.filter;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            applyGalleryFilter();
+        });
+    });
 
     // Queue Action Controls
     pauseQueueBtn.addEventListener('click', handlePauseQueue);
@@ -526,7 +591,7 @@ function setupEventListeners() {
         lightboxRegenBtn.addEventListener('click', () => {
             if (activeLightboxItem) {
                 closeLightbox();
-                regeneratePrompt(activeLightboxItem, true); // use fixed seed
+                regeneratePrompt(activeLightboxItem, false); // use random seed for new variation
             }
         });
     }
@@ -588,6 +653,81 @@ function setupEventListeners() {
             configPane.classList.toggle('collapsed');
         });
     }
+}
+
+// Restart the server and wait for it to come back online
+async function handleRestartServer() {
+    if (!confirm(TRANSLATIONS[currentLang].confirmRestart)) return;
+
+    const btn = document.getElementById('restartServerBtn');
+    const btnSpan = btn ? btn.querySelector('span') : null;
+    const btnSvg  = btn ? btn.querySelector('svg') : null;
+
+    // Visual: disable button + spin icon
+    if (btn) {
+        btn.disabled = true;
+        btn.classList.add('restarting');
+    }
+    if (btnSpan) btnSpan.textContent = TRANSLATIONS[currentLang].statusRestarting;
+
+    // Update status indicator
+    statusIndicator.className = 'status-indicator status-offline';
+    statusIndicator.textContent = TRANSLATIONS[currentLang].statusRestarting;
+
+    showToast(TRANSLATIONS[currentLang].toastRestarting, 'info');
+    addLog(TRANSLATIONS[currentLang].toastRestarting, 'system');
+
+    // Send restart request (server will reply then exec itself)
+    try {
+        await fetch('/api/restart', { method: 'POST' });
+    } catch (_) {
+        // Connection drop during restart is expected — ignore
+    }
+
+    // Stop existing polling loops to avoid noisy errors during downtime
+    if (statusInterval) { clearInterval(statusInterval); statusInterval = null; }
+    if (pollQueueInterval) { clearInterval(pollQueueInterval); pollQueueInterval = null; }
+
+    // Poll until server is back online (max ~60s)
+    let attempts = 0;
+    const maxAttempts = 60;
+    const waitForRestart = setInterval(async () => {
+        attempts++;
+        try {
+            const res = await fetch('/api/status');
+            if (res.ok) {
+                // Server is back!
+                clearInterval(waitForRestart);
+
+                // Re-enable button
+                if (btn) {
+                    btn.disabled = false;
+                    btn.classList.remove('restarting');
+                }
+                if (btnSpan) btnSpan.textContent = TRANSLATIONS[currentLang].restartServer;
+
+                // Resume polling loops
+                statusInterval    = setInterval(pollServerStatus, 5000);
+                pollQueueInterval = setInterval(syncQueueState, 1000);
+
+                showToast(TRANSLATIONS[currentLang].toastRestartDone, 'success');
+                addLog(TRANSLATIONS[currentLang].toastRestartDone, 'system');
+                pollServerStatus();
+                syncQueueState();
+            }
+        } catch (_) {
+            // Still offline — keep waiting
+        }
+
+        if (attempts >= maxAttempts) {
+            clearInterval(waitForRestart);
+            if (btn) { btn.disabled = false; btn.classList.remove('restarting'); }
+            if (btnSpan) btnSpan.textContent = TRANSLATIONS[currentLang].restartServer;
+            statusInterval    = setInterval(pollServerStatus, 5000);
+            pollQueueInterval = setInterval(syncQueueState, 1000);
+            addLog(currentLang === 'zh' ? '重启超时，请手动检查服务状态。' : 'Restart timeout. Please check server manually.', 'error');
+        }
+    }, 1000);
 }
 
 // Poll server status API
@@ -789,6 +929,9 @@ function updateQueueUI() {
         } else if (item.status === 'failed') {
             statusText = '❌ ' + (currentLang === 'zh' ? '失败' : 'Failed');
             badgeClass = 'badge-failed';
+        } else if (item.status === 'skipped') {
+            statusText = '⏭️ ' + TRANSLATIONS[currentLang].statusSkipped;
+            badgeClass = 'badge-skipped';
         }
 
         // Display timing
@@ -799,7 +942,41 @@ function updateQueueUI() {
             timeDisplay = `${item.elapsed.toFixed(1)}s`;
         } else if (item.status === 'failed') {
             timeDisplay = 'Err';
+        } else if (item.status === 'skipped') {
+            timeDisplay = '-';
         }
+
+        // Per-row action buttons — vary by status
+        // pending:  ⬆️ move-top  ⏭️ skip  🗑️ delete
+        // failed:              ⏭️ skip  🗑️ delete
+        // skipped:                      🗑️ delete
+        // generating / completed: (none)
+        const canDelete  = ['pending', 'failed', 'skipped'].includes(item.status);
+        const canSkip    = ['pending', 'failed'].includes(item.status);
+        const canMoveTop = item.status === 'pending';
+
+        let rowActionsHtml = `<span class="col-actions">`;
+        if (canDelete || canSkip || canMoveTop) {
+            if (canMoveTop) {
+                rowActionsHtml += `
+                <button class="row-action-btn btn-move-top" title="${TRANSLATIONS[currentLang].btnMoveTop}" data-id="${item.id}">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 11 12 6 7 11"></polyline><polyline points="17 18 12 13 7 18"></polyline></svg>
+                </button>`;
+            }
+            if (canSkip) {
+                rowActionsHtml += `
+                <button class="row-action-btn btn-skip-task" title="${TRANSLATIONS[currentLang].btnSkip}" data-id="${item.id}">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>
+                </button>`;
+            }
+            if (canDelete) {
+                rowActionsHtml += `
+                <button class="row-action-btn btn-delete-task danger" title="${TRANSLATIONS[currentLang].btnDelete}" data-id="${item.id}">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>`;
+            }
+        }
+        rowActionsHtml += `</span>`;
 
         row.innerHTML = `
             <span class="col-num">${index + 1}</span>
@@ -810,7 +987,29 @@ function updateQueueUI() {
             <span class="col-time" id="time_${item.id}">
                 ${timeDisplay}
             </span>
+            ${rowActionsHtml}
         `;
+
+        // Attach row action button listeners
+        if (canMoveTop) {
+            row.querySelector('.btn-move-top').addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleMoveToFront(item.id);
+            });
+        }
+        if (canSkip) {
+            row.querySelector('.btn-skip-task').addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleSkipTask(item.id);
+            });
+        }
+        if (canDelete) {
+            row.querySelector('.btn-delete-task').addEventListener('click', (e) => {
+                e.stopPropagation();
+                handleDeleteTask(item.id);
+            });
+        }
+
         queueList.appendChild(row);
     });
 }
@@ -851,6 +1050,9 @@ function syncGalleryUI() {
             }
         }
     });
+
+    // Re-apply current filter after gallery update
+    applyGalleryFilter();
 }
 
 // Add prompts to backend queue
@@ -887,6 +1089,16 @@ async function handleAddToQueue() {
     const seed = parseInt(seedInput.value, 10) || -1;
 
     try {
+        // Smart clear: if the previous batch is fully done, clean up queue records
+        // (gallery images are preserved, only task list entries are removed)
+        const isAllDone = promptQueue.length > 0 &&
+            promptQueue.every(item => ['completed', 'failed', 'skipped'].includes(item.status));
+        if (isAllDone) {
+            await fetch('/api/queue/clear-completed', { method: 'POST' });
+            resetTotalTimer();
+            addLog(currentLang === 'zh' ? '上一批任务已完成，队列记录已自动清理。' : 'Previous batch done — queue records cleared.', 'system');
+        }
+
         if (queueStatus === 'idle') {
             resetTotalTimer();
         }
@@ -1126,12 +1338,20 @@ function createImageItem(item) {
     wrapper.dataset.filename = item.filename;
     wrapper.itemData = item; // Store item data directly on the DOM element
 
-    
     const imageUrl = `/outputs/${item.filename}`;
     const titleText = currentLang === 'zh' ? '用此种子重新生成' : 'Regenerate with Seed';
-    
+
+    // Restore persisted rating
+    const rating = getImageRating(item.filename);
+    if (rating === 'like') wrapper.classList.add('rated-like');
+    else if (rating === 'dislike') wrapper.classList.add('rated-dislike');
+
     wrapper.innerHTML = `
         <img src="${imageUrl}" alt="${escapeHtml(item.prompt)}" loading="lazy">
+        <div class="image-rating-bar">
+            <button class="btn-rate btn-like${rating === 'like' ? ' active' : ''}" title="\uD83D\uDC4D" data-filename="${item.filename}">👍</button>
+            <button class="btn-rate btn-dislike${rating === 'dislike' ? ' active' : ''}" title="\uD83D\uDC4E" data-filename="${item.filename}">👎</button>
+        </div>
         <div class="image-meta-overlay">
             <span class="image-seed-badge">🌱 ${item.seed_used}</span>
             <button class="btn-regenerate-single" title="${titleText}">
@@ -1143,22 +1363,152 @@ function createImageItem(item) {
             </button>
         </div>
     `;
-    
+
     // Click thumbnail opens Lightbox
     wrapper.addEventListener('click', (e) => {
-        if (e.target.closest('.btn-regenerate-single')) {
+        if (e.target.closest('.btn-regenerate-single') || e.target.closest('.btn-rate')) {
             return;
         }
         openLightbox(item);
     });
-    
+
     const regenSingleBtn = wrapper.querySelector('.btn-regenerate-single');
     regenSingleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        regeneratePrompt(item, true); // use fixed seed
+        regeneratePrompt(item, false); // always use random seed for new variation
     });
-    
+
+    // Like button
+    wrapper.querySelector('.btn-like').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const current = getImageRating(item.filename);
+        const next = current === 'like' ? null : 'like';
+        setImageRating(item.filename, next, wrapper);
+        applyGalleryFilter();
+    });
+
+    // Dislike button
+    wrapper.querySelector('.btn-dislike').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const current = getImageRating(item.filename);
+        const next = current === 'dislike' ? null : 'dislike';
+        setImageRating(item.filename, next, wrapper);
+        applyGalleryFilter();
+    });
+
     return wrapper;
+}
+
+// Per-task queue action handlers
+async function handleDeleteTask(taskId) {
+    try {
+        const res = await fetch(`/api/queue/${taskId}`, { method: 'DELETE' });
+        if (res.ok) {
+            showToast(TRANSLATIONS[currentLang].toastDeleted, 'info');
+            syncQueueState();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            const detail = body.detail || `HTTP ${res.status}`;
+            showToast(TRANSLATIONS[currentLang].toastError.replace('{err}', detail), 'error');
+            syncQueueState(); // refresh to show current real state
+        }
+    } catch (err) {
+        showToast(TRANSLATIONS[currentLang].toastError.replace('{err}', err.message), 'error');
+    }
+}
+
+async function handleSkipTask(taskId) {
+    try {
+        const res = await fetch(`/api/queue/${taskId}/skip`, { method: 'POST' });
+        if (res.ok) {
+            showToast(TRANSLATIONS[currentLang].toastSkipped, 'info');
+            syncQueueState();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            const detail = body.detail || `HTTP ${res.status}`;
+            showToast(TRANSLATIONS[currentLang].toastError.replace('{err}', detail), 'error');
+            syncQueueState();
+        }
+    } catch (err) {
+        showToast(TRANSLATIONS[currentLang].toastError.replace('{err}', err.message), 'error');
+    }
+}
+
+async function handleMoveToFront(taskId) {
+    try {
+        const res = await fetch(`/api/queue/${taskId}/move-front`, { method: 'POST' });
+        if (res.ok) {
+            showToast(TRANSLATIONS[currentLang].toastMovedTop, 'success');
+            syncQueueState();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            const detail = body.detail || `HTTP ${res.status}`;
+            showToast(TRANSLATIONS[currentLang].toastError.replace('{err}', detail), 'error');
+            syncQueueState();
+        }
+    } catch (err) {
+        showToast(TRANSLATIONS[currentLang].toastError.replace('{err}', err.message), 'error');
+    }
+}
+
+// ============================================================
+// Rating Persistence (localStorage keyed by filename)
+// ============================================================
+function getImageRating(filename) {
+    const ratings = JSON.parse(localStorage.getItem('imageRatings') || '{}');
+    return ratings[filename] || null; // 'like' | 'dislike' | null
+}
+
+function setImageRating(filename, rating, wrapperEl) {
+    const ratings = JSON.parse(localStorage.getItem('imageRatings') || '{}');
+    if (rating === null) {
+        delete ratings[filename];
+    } else {
+        ratings[filename] = rating;
+    }
+    localStorage.setItem('imageRatings', JSON.stringify(ratings));
+
+    // Update DOM classes and button active states
+    wrapperEl.classList.remove('rated-like', 'rated-dislike');
+    const likeBtn = wrapperEl.querySelector('.btn-like');
+    const dislikeBtn = wrapperEl.querySelector('.btn-dislike');
+    if (likeBtn) likeBtn.classList.remove('active');
+    if (dislikeBtn) dislikeBtn.classList.remove('active');
+
+    if (rating === 'like') {
+        wrapperEl.classList.add('rated-like');
+        if (likeBtn) likeBtn.classList.add('active');
+    } else if (rating === 'dislike') {
+        wrapperEl.classList.add('rated-dislike');
+        if (dislikeBtn) dislikeBtn.classList.add('active');
+    }
+}
+
+// ============================================================
+// Gallery Filter Logic
+// ============================================================
+function applyGalleryFilter() {
+    const allItems = document.querySelectorAll('.group-image-item');
+    allItems.forEach(item => {
+        const filename = item.dataset.filename;
+        const rating = getImageRating(filename);
+
+        let visible = true;
+        if (galleryFilter === 'liked') {
+            visible = rating === 'like';
+        } else if (galleryFilter === 'disliked') {
+            visible = rating === 'dislike';
+        } else if (galleryFilter === 'hide-disliked') {
+            visible = rating !== 'dislike';
+        }
+        item.style.display = visible ? '' : 'none';
+    });
+
+    // Hide group cards that have no visible images
+    document.querySelectorAll('.gallery-group-card').forEach(card => {
+        const visibleItems = card.querySelectorAll('.group-image-item:not([style*="display: none"])');
+        card.style.display = visibleItems.length === 0 ? 'none' : '';
+    });
 }
 
 // Queue prompt for regeneration

@@ -29,6 +29,13 @@
             </div>
             <div class="status-panel">
                 <button id="langToggleBtn" class="lang-toggle-btn">EN</button>
+                <button id="restartServerBtn" class="restart-server-btn" title="Restart Server" data-i18n-title="titleRestartServer">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                        <path d="M3 3v5h5"></path>
+                    </svg>
+                    <span data-i18n="restartServer">Restart</span>
+                </button>
                 <span class="status-indicator" id="statusIndicator" data-i18n="statusConnecting">Connecting...</span>
             </div>
         </header>
@@ -227,6 +234,13 @@
                     <h2 data-i18n="genGalleryTitle">Generated Gallery</h2>
                 </div>
                 <div class="gallery-actions">
+                    <div class="gallery-filter-bar">
+                        <span class="filter-label" data-i18n="filterLabel">Filter</span>
+                        <button id="filterAll" class="filter-btn active" data-filter="all">🖼️ <span data-i18n="filterAll">All</span></button>
+                        <button id="filterLiked" class="filter-btn" data-filter="liked">👍 <span data-i18n="filterLiked">Liked</span></button>
+                        <button id="filterDisliked" class="filter-btn filter-dislike" data-filter="disliked">👎 <span data-i18n="filterDisliked">Disliked</span></button>
+                        <button id="filterHideDisliked" class="filter-btn" data-filter="hide-disliked">🙈 <span data-i18n="filterHideDisliked">Hide Disliked</span></button>
+                    </div>
                     <button id="openFolderBtn" class="btn secondary-btn">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>

@@ -1,4 +1,6 @@
 import os
+import sys
+import re
 import time
 import uuid
 import asyncio
@@ -50,6 +52,68 @@ cancel_flag = False
 
 OUTPUTS_DIR = os.path.join("static", "outputs")
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
+
+def _has_cjk(text: str) -> bool:
+    """Return True if text contains CJK (Chinese/Japanese/Korean) characters."""
+    for ch in text:
+        cp = ord(ch)
+        if (0x4E00 <= cp <= 0x9FFF or   # CJK Unified Ideographs
+                0x3400 <= cp <= 0x4DBF or   # CJK Extension A
+                0xF900 <= cp <= 0xFAFF or   # CJK Compatibility Ideographs
+                0xAC00 <= cp <= 0xD7AF):    # Korean Hangul
+            return True
+    return False
+
+
+def _cjk_to_slug(text: str) -> str:
+    """Convert CJK text to a slug: try Google Translate first, fallback to pinyin."""
+    # --- Strategy 1: online translation ---
+    try:
+        from deep_translator import GoogleTranslator
+        translated = GoogleTranslator(source='auto', target='en').translate(text[:200])
+        if translated:
+            return translated
+    except Exception:
+        pass  # network unavailable or package missing
+
+    # --- Strategy 2: pinyin romanisation (offline) ---
+    try:
+        from pypinyin import lazy_pinyin
+        pinyin_parts = lazy_pinyin(text)
+        return ' '.join(pinyin_parts)
+    except Exception:
+        pass
+
+    # --- Strategy 3: deterministic hash fallback ---
+    import hashlib
+    return 'prompt-' + hashlib.md5(text.encode('utf-8')).hexdigest()[:8]
+
+
+def _make_slug(text: str, max_len: int = 40) -> str:
+    """Turn arbitrary text into a URL/filename-safe slug."""
+    # Translate CJK text first
+    if _has_cjk(text):
+        text = _cjk_to_slug(text)
+
+    slug = text.lower()
+    slug = re.sub(r'[^a-z0-9]+', '-', slug)  # non-alphanumeric → hyphen
+    slug = slug.strip('-')
+    slug = slug[:max_len]
+    slug = slug.rstrip('-')
+    return slug or 'image'
+
+
+def make_filename(prompt: str, seed: int) -> str:
+    """Generate a human-readable filename from the prompt and seed.
+
+    Format : YYYYMMDD_HHMMSS_<slug>_s<seed>.png
+    English: 20240607_143022_a-beautiful-sunset_s837421.png
+    Chinese: 20240607_143022_beautiful-mountain-landscape_s291847.png  (translated)
+             20240607_143022_mei-li-shan-shui_s291847.png              (pinyin fallback)
+    """
+    ts   = time.strftime("%Y%m%d_%H%M%S")
+    slug = _make_slug(prompt, max_len=40)
+    return f"{ts}_{slug}_s{seed}.png"
 
 # Background Worker Thread Loop
 async def queue_worker():
@@ -110,7 +174,7 @@ async def queue_worker():
             ).images[0]
             
             # Save generated PNG
-            filename = f"gen_{uuid.uuid4().hex}.png"
+            filename = make_filename(active_item.prompt, seed)
             filepath = os.path.join(OUTPUTS_DIR, filename)
             image.save(filepath)
             
@@ -188,6 +252,15 @@ async def get_status():
         "is_busy": queue_status == "running"
     }
 
+@app.post("/api/restart")
+async def restart_server():
+    """Restart the server process by re-executing itself."""
+    async def _do_restart():
+        await asyncio.sleep(0.6)  # Give time for HTTP response to be flushed
+        os.execv(sys.executable, [sys.executable] + sys.argv)
+    asyncio.create_task(_do_restart())
+    return {"success": True, "message": "Server is restarting..."}
+
 # Queue Management APIs
 @app.get("/api/queue")
 async def get_queue():
@@ -260,6 +333,61 @@ async def clear_queue():
     db_queue = []
     queue_status = "idle"
     return {"success": True, "status": queue_status}
+
+@app.post("/api/queue/clear-completed")
+async def clear_completed_tasks():
+    """Remove all completed/failed/skipped tasks from the queue (keeps files intact)."""
+    global db_queue, queue_status
+    db_queue = [item for item in db_queue if item.status in ("pending", "generating")]
+    if not db_queue and queue_status != "running":
+        queue_status = "idle"
+    return {"success": True, "remaining": len(db_queue)}
+
+@app.delete("/api/queue/{task_id}")
+async def delete_task(task_id: str):
+    """Delete any non-generating task from the queue."""
+    global db_queue
+    # Find the task first to give a meaningful error
+    target = next((item for item in db_queue if item.id == task_id), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found in queue")
+    if target.status == "generating":
+        raise HTTPException(status_code=409, detail="Cannot delete a task that is currently generating")
+    db_queue = [item for item in db_queue if item.id != task_id]
+    return {"success": True}
+
+@app.post("/api/queue/{task_id}/skip")
+async def skip_task(task_id: str):
+    """Mark any non-generating, non-completed task as skipped."""
+    global db_queue
+    target = next((item for item in db_queue if item.id == task_id), None)
+    if target is None:
+        raise HTTPException(status_code=404, detail=f"Task '{task_id}' not found in queue")
+    if target.status in ("generating", "completed", "skipped"):
+        raise HTTPException(status_code=409, detail=f"Cannot skip task in '{target.status}' state")
+    target.status = "skipped"
+    return {"success": True}
+
+@app.post("/api/queue/{task_id}/move-front")
+async def move_task_to_front(task_id: str):
+    """Move a pending task to the front of the queue."""
+    global db_queue
+    target = None
+    for item in db_queue:
+        if item.id == task_id and item.status == "pending":
+            target = item
+            break
+    if target is None:
+        raise HTTPException(status_code=404, detail="Task not found or not in pending state")
+    db_queue.remove(target)
+    # Insert after any currently generating item
+    insert_pos = 0
+    for i, item in enumerate(db_queue):
+        if item.status == "generating":
+            insert_pos = i + 1
+            break
+    db_queue.insert(insert_pos, target)
+    return {"success": True}
 
 @app.get("/api/outputs/zip")
 async def download_all_images():

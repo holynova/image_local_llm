@@ -1,13 +1,16 @@
 :root {
-    /* Tailwind CSS Design System Variables */
-    --bg-slate-900: #0f172a;
-    --bg-slate-950: #020617;
-    --text-slate-50: #f8fafc;
-    --text-slate-400: #94a3b8;
-    --indigo-500: #6366f1;
-    --indigo-600: #4f46e5;
-    --sky-400: #38bdf8;
+    /* Design System Variables — Emerald Green Theme */
+    --bg-slate-900: #0d1a12;
+    --bg-slate-950: #060f09;
+    --text-slate-50: #f0fdf4;
+    --text-slate-400: #86a894;
+
+    /* Accent: Emerald Green */
+    --emerald-400: #34d399;
     --emerald-500: #10b981;
+    --emerald-600: #059669;
+    --emerald-700: #047857;
+    --teal-400: #2dd4bf;
     --amber-500: #f59e0b;
     --rose-500: #f43f5e;
 
@@ -17,36 +20,39 @@
     --surface-raised: var(--bg-slate-900);
     --text-primary: var(--text-slate-50);
     --text-secondary: var(--text-slate-400);
-    
-    --accent-purple: var(--indigo-500);
-    --accent-purple-glow: rgba(99, 102, 241, 0.15);
-    --accent-hover: var(--indigo-600);
-    --accent-sky: var(--sky-400);
-    
-    --border-subtle: #334155;
-    --border-hover: #475569;
-    
+
+    /* Main accent is now green */
+    --accent-purple: var(--emerald-500);
+    --accent-purple-glow: rgba(16, 185, 129, 0.15);
+    --accent-hover: var(--emerald-600);
+    --accent-sky: var(--teal-400);
+
+    --border-subtle: #1a3328;
+    --border-hover: #2d5040;
+
     --success: var(--emerald-500);
     --warning: var(--amber-500);
     --danger: var(--rose-500);
-    
+    --like-color: #34d399;
+    --dislike-color: #f43f5e;
+
     --font-sans: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    
+
     --sans-display: var(--font-sans);
     --sans-text: var(--font-sans);
     --mono: var(--font-mono);
-    
-    --radius-bento: 12px;        /* rounded-xl */
-    --radius-inner: 8px;         /* rounded-lg */
-    --radius-control: 6px;       /* rounded-md */
-    --radius-badge: 999px;       /* rounded-full */
-    
+
+    --radius-bento: 12px;
+    --radius-inner: 8px;
+    --radius-control: 6px;
+    --radius-badge: 999px;
+
     --transition-snappy: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-slide: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
-    
+
     --shadow-default: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px -1px rgba(0, 0, 0, 0.3);
-    --shadow-glow: 0 10px 15px -3px rgba(99, 102, 241, 0.25), 0 4px 6px -4px rgba(99, 102, 241, 0.25);
+    --shadow-glow: 0 10px 15px -3px rgba(16, 185, 129, 0.2), 0 4px 6px -4px rgba(16, 185, 129, 0.2);
 }
 
 
@@ -83,7 +89,7 @@ body {
     border-radius: var(--radius-badge);
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-purple);
+    background: var(--emerald-600);
 }
 
 /* Spotlight Top Ambient Glow */
@@ -95,7 +101,7 @@ body {
     width: 100%;
     max-width: 1400px;
     height: 400px;
-    background-image: radial-gradient(circle at top, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
+    background-image: radial-gradient(circle at top, rgba(16, 185, 129, 0.12) 0%, transparent 60%);
     z-index: 0;
     pointer-events: none;
 }
@@ -133,8 +139,8 @@ body {
 }
 
 .logo-icon {
-    color: var(--accent-purple);
-    filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.4));
+    color: var(--emerald-400);
+    filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.45));
 }
 
 
@@ -273,7 +279,7 @@ body {
 }
 
 .bento-card:hover .card-header .icon {
-    color: var(--accent-purple);
+    color: var(--emerald-400);
 }
 
 .card-body {
@@ -289,9 +295,9 @@ body {
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--accent-purple);
-    background: rgba(99, 102, 241, 0.1);
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    color: var(--emerald-400);
+    background: rgba(52, 211, 153, 0.08);
+    border: 1px solid rgba(52, 211, 153, 0.2);
     padding: 3px 8px;
     border-radius: var(--radius-badge);
 }
@@ -327,9 +333,9 @@ textarea {
 }
 
 textarea:focus {
-    border-color: var(--accent-purple);
-    background: rgba(255, 255, 255, 0.03);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+    border-color: var(--emerald-500);
+    background: rgba(16, 185, 129, 0.02);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.1);
 }
 
 
@@ -381,8 +387,8 @@ select, input[type="number"] {
 }
 
 select:focus, input[type="number"]:focus {
-    border-color: var(--accent-purple);
-    box-shadow: 0 0 10px rgba(99, 102, 241, 0.1);
+    border-color: var(--emerald-500);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
 }
 
 /* Button UI Controls */
@@ -410,15 +416,15 @@ select:focus, input[type="number"]:focus {
 
 
 .primary-btn {
-    background: var(--accent-purple);
-    color: var(--text-primary);
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+    background: linear-gradient(135deg, var(--emerald-500) 0%, var(--emerald-600) 100%);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
 }
 
 .primary-btn:hover {
-    background: var(--accent-hover);
+    background: linear-gradient(135deg, var(--emerald-400) 0%, var(--emerald-500) 100%);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.45);
 }
 
 .primary-btn:active {
@@ -482,8 +488,8 @@ select:focus, input[type="number"]:focus {
 }
 
 .queue-row.generating {
-    background: rgba(99, 102, 241, 0.04);
-    border-left: 2px solid var(--accent-purple);
+    background: rgba(16, 185, 129, 0.04);
+    border-left: 2px solid var(--emerald-500);
 }
 
 .col-num { width: 36px; font-weight: 600; color: var(--text-secondary); }
@@ -505,9 +511,10 @@ select:focus, input[type="number"]:focus {
 }
 
 .badge-pending { background: rgba(255, 255, 255, 0.04); color: var(--text-secondary); }
-.badge-generating { background: rgba(99, 102, 241, 0.15); color: var(--accent-purple); animation: breath 2s infinite ease-in-out; }
-.badge-completed { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+.badge-generating { background: rgba(16, 185, 129, 0.15); color: var(--emerald-400); animation: breath 2s infinite ease-in-out; }
+.badge-completed { background: rgba(52, 211, 153, 0.12); color: var(--emerald-400); }
 .badge-failed { background: rgba(244, 63, 94, 0.1); color: var(--danger); }
+.badge-skipped { background: rgba(245, 158, 11, 0.1); color: var(--warning); }
 
 
 /* Empty state */
@@ -825,10 +832,10 @@ select:focus, input[type="number"]:focus {
 }
 
 .lightbox-nav-btn:hover {
-    background: rgba(99, 102, 241, 0.85);
-    color: var(--text-primary);
-    border-color: var(--accent-purple);
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.5);
+    background: rgba(16, 185, 129, 0.85);
+    color: #fff;
+    border-color: var(--emerald-500);
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
 }
 
 
@@ -909,6 +916,15 @@ select:focus, input[type="number"]:focus {
     gap: 8px;
     align-items: center;
     flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.gallery-filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-right: auto; /* push action buttons to the right */
 }
 
 
@@ -939,6 +955,45 @@ select:focus, input[type="number"]:focus {
     background: rgba(255, 255, 255, 0.08);
     color: var(--text-primary);
     border-color: var(--border-hover);
+}
+
+/* Restart Server Button */
+.restart-server-btn {
+    background: rgba(255, 255, 255, 0.02);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 50px;
+    margin-right: 10px;
+    transition: var(--transition-snappy);
+    outline: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.restart-server-btn:hover {
+    background: rgba(245, 158, 11, 0.08);
+    color: var(--warning);
+    border-color: rgba(245, 158, 11, 0.35);
+}
+
+.restart-server-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.restart-server-btn.restarting svg {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
 }
 
 /* Prompt History Section */
@@ -1011,9 +1066,9 @@ select:focus, input[type="number"]:focus {
 }
 
 .history-item:hover {
-    background: rgba(99, 102, 241, 0.08);
-    border-color: rgba(99, 102, 241, 0.3);
-    color: var(--accent-purple);
+    background: rgba(16, 185, 129, 0.07);
+    border-color: rgba(52, 211, 153, 0.3);
+    color: var(--emerald-400);
 }
 
 
@@ -1052,7 +1107,7 @@ select:focus, input[type="number"]:focus {
 .progress-value {
     font-variant-numeric: tabular-nums;
     font-weight: 700;
-    color: var(--accent-purple);
+    color: var(--emerald-400);
 }
 
 .progress-bar-track {
@@ -1066,8 +1121,8 @@ select:focus, input[type="number"]:focus {
 
 .progress-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, var(--accent-purple) 0%, #a855f7 100%);
-    box-shadow: 0 0 8px var(--accent-purple);
+    background: linear-gradient(90deg, var(--emerald-600) 0%, var(--emerald-400) 100%);
+    box-shadow: 0 0 8px rgba(52, 211, 153, 0.6);
     width: 0%;
     border-radius: var(--radius-badge);
     transition: width 300ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -1102,7 +1157,7 @@ select:focus, input[type="number"]:focus {
 }
 
 .gallery-group-card:hover {
-    border-color: var(--accent-purple);
+    border-color: var(--emerald-600);
     box-shadow: var(--shadow-glow);
 }
 
@@ -1146,8 +1201,8 @@ select:focus, input[type="number"]:focus {
 }
 
 .btn-regenerate-group:hover {
-    color: var(--accent-purple);
-    background: rgba(99, 102, 241, 0.1);
+    color: var(--emerald-400);
+    background: rgba(52, 211, 153, 0.1);
 }
 
 
@@ -1173,7 +1228,7 @@ select:focus, input[type="number"]:focus {
 
 .group-image-item:hover {
     transform: scale(1.02);
-    border-color: var(--accent-purple);
+    border-color: var(--emerald-500);
 }
 
 .group-image-item img {
@@ -1222,7 +1277,7 @@ select:focus, input[type="number"]:focus {
 }
 
 .btn-regenerate-single:hover {
-    color: var(--accent-purple);
+    color: var(--emerald-400);
     background: rgba(255, 255, 255, 0.1);
 }
 
@@ -1230,9 +1285,9 @@ select:focus, input[type="number"]:focus {
 .total-timer {
     font-size: 11px;
     font-weight: 700;
-    color: var(--accent-purple);
-    background: rgba(99, 102, 241, 0.1);
-    border: 1px solid rgba(99, 102, 241, 0.2);
+    color: var(--emerald-400);
+    background: rgba(52, 211, 153, 0.08);
+    border: 1px solid rgba(52, 211, 153, 0.2);
     padding: 2px 6px;
     border-radius: 4px;
     margin-left: 8px;
@@ -1448,8 +1503,8 @@ select:focus, input[type="number"]:focus {
 }
 
 .toast {
-    background: rgba(2, 6, 23, 0.9);
-    border: 1px solid var(--accent-purple);
+    background: rgba(6, 15, 9, 0.95);
+    border: 1px solid var(--emerald-700);
     border-radius: var(--radius-badge);
     padding: 12px 18px;
     color: var(--text-primary);
@@ -1471,11 +1526,171 @@ select:focus, input[type="number"]:focus {
 }
 
 .toast.success {
-    border-color: var(--success);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.15);
+    border-color: var(--emerald-500);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.2);
 }
 
-
 .toast.success svg {
-    color: var(--success);
+    color: var(--emerald-400);
+}
+
+/* ============================================================
+   Like / Dislike Rating System
+   ============================================================ */
+.image-rating-bar {
+    display: flex;
+    gap: 4px;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    opacity: 0;
+    transition: opacity 180ms ease;
+    z-index: 5;
+}
+
+.group-image-item:hover .image-rating-bar {
+    opacity: 1;
+}
+
+/* Always show rating indicator when already rated */
+.group-image-item.rated-like .image-rating-bar,
+.group-image-item.rated-dislike .image-rating-bar {
+    opacity: 1;
+}
+
+.btn-rate {
+    background: rgba(6, 15, 9, 0.75);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--text-secondary);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1;
+    backdrop-filter: blur(4px);
+    transition: var(--transition-snappy);
+    padding: 0;
+}
+
+.btn-rate:hover {
+    transform: scale(1.15);
+    border-color: rgba(255,255,255,0.25);
+}
+
+.btn-rate.btn-like:hover,
+.btn-rate.btn-like.active {
+    background: rgba(52, 211, 153, 0.25);
+    border-color: var(--like-color);
+    color: var(--like-color);
+    box-shadow: 0 0 10px rgba(52, 211, 153, 0.35);
+}
+
+.btn-rate.btn-dislike:hover,
+.btn-rate.btn-dislike.active {
+    background: rgba(244, 63, 94, 0.2);
+    border-color: var(--dislike-color);
+    color: var(--dislike-color);
+    box-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
+}
+
+/* Faded/hidden state for disliked images */
+.group-image-item.rated-dislike {
+    opacity: 0.25;
+    filter: saturate(0.2);
+    transition: opacity 300ms ease, filter 300ms ease;
+}
+
+.group-image-item.rated-dislike:hover {
+    opacity: 0.85;
+    filter: saturate(0.8);
+}
+
+/* ============================================================
+   Gallery Filter Bar
+   ============================================================ */
+
+
+.filter-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.filter-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    padding: 4px 12px;
+    border-radius: var(--radius-badge);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-snappy);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.filter-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--border-hover);
+    color: var(--text-primary);
+}
+
+.filter-btn.active {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(52, 211, 153, 0.4);
+    color: var(--emerald-400);
+}
+
+.filter-btn.filter-dislike.active {
+    background: rgba(244, 63, 94, 0.08);
+    border-color: rgba(244, 63, 94, 0.3);
+    color: var(--dislike-color);
+}
+
+/* Row action buttons in queue */
+.col-actions {
+    width: 76px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 3px;
+    flex-shrink: 0;
+}
+
+.row-action-btn {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition-snappy);
+    padding: 0;
+    flex-shrink: 0;
+}
+
+.row-action-btn:hover {
+    background: rgba(52, 211, 153, 0.08);
+    border-color: rgba(52, 211, 153, 0.3);
+    color: var(--emerald-400);
+}
+
+.row-action-btn.danger:hover {
+    background: rgba(244, 63, 94, 0.08);
+    border-color: rgba(244, 63, 94, 0.25);
+    color: var(--danger);
 }
