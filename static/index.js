@@ -9,6 +9,18 @@ let activeLightboxItem = null; // Track currently open image in lightbox
 let queueTimerInterval = null;
 let galleryFilter = 'all'; // 'all' | 'liked' | 'disliked' | 'hide-disliked'
 
+const ICONS = {
+    clock: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>',
+    loader: '<svg class="ui-icon icon-spin" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7"></path></svg>',
+    check: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m8 12 2.7 2.7L16.5 9"></path></svg>',
+    error: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m9 9 6 6m0-6-6 6"></path></svg>',
+    skip: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 5 9 7-9 7V5Zm12 0v14"></path></svg>',
+    layers: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 7.5 8-4.5 8 4.5-8 4.5-8-4.5Z"></path><path d="m4 12 8 4.5 8-4.5M4 16.5l8 4.5 8-4.5"></path></svg>',
+    like: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11H3V10h4Zm0 9c3 2 8 2 10 1l3-7c.5-1.5-.5-3-2-3h-5l1-5c.2-1.4-1-2.4-2-1l-5 6"></path></svg>',
+    dislike: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14V3H3v11h4Zm0-9c3-2 8-2 10-1l3 7c.5 1.5-.5 3-2 3h-5l1 5c.2 1.4-1 2.4-2 1l-5-6"></path></svg>',
+    seed: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V10"></path><path d="M12 14c-4 0-7-2-7-6 4 0 7 2 7 6Zm0-4c0-4 3-6 7-6 0 4-3 6-7 6Z"></path></svg>'
+};
+
 // Translations Dictionary and State
 const TRANSLATIONS = {
     en: {
@@ -483,8 +495,8 @@ function updateTimerUI(elapsedMs) {
     const seconds = totalSeconds % 60;
     
     const pad = (num) => String(num).padStart(2, '0');
-    timerEl.textContent = `⏱️ ${pad(minutes)}:${pad(seconds)}`;
-    timerEl.style.display = 'inline-block';
+    timerEl.innerHTML = `${ICONS.clock}<span class="timer-value">${pad(minutes)}:${pad(seconds)}</span>`;
+    timerEl.style.display = 'inline-flex';
 }
 
 function resetTotalTimer() {
@@ -496,7 +508,7 @@ function resetTotalTimer() {
     localStorage.removeItem('queueAccumulatedTime');
     const timerEl = document.getElementById('queueTotalTimer');
     if (timerEl) {
-        timerEl.textContent = '⏱️ 00:00';
+        timerEl.innerHTML = `${ICONS.clock}<span class="timer-value">00:00</span>`;
         timerEl.style.display = 'none';
     }
 }
@@ -960,7 +972,7 @@ function updateQueueUI() {
     if (promptQueue.length === 0) {
         queueList.innerHTML = `
             <div class="empty-state">
-                <span class="empty-icon">🏖️</span>
+                <span class="empty-icon" aria-hidden="true">${ICONS.layers}</span>
                 <p>${TRANSLATIONS[currentLang].emptyQueue}</p>
             </div>
         `;
@@ -977,19 +989,19 @@ function updateQueueUI() {
         let badgeClass = '';
 
         if (item.status === 'pending') {
-            statusText = '🕒 ' + (currentLang === 'zh' ? '等待中' : 'Pending');
+            statusText = ICONS.clock + (currentLang === 'zh' ? '等待中' : 'Pending');
             badgeClass = 'badge-pending';
         } else if (item.status === 'generating') {
-            statusText = '⚙️ ' + (currentLang === 'zh' ? '生成中' : 'Generating');
+            statusText = ICONS.loader + (currentLang === 'zh' ? '生成中' : 'Generating');
             badgeClass = 'badge-generating';
         } else if (item.status === 'completed') {
-            statusText = '✅ ' + (currentLang === 'zh' ? '已完成' : 'Completed');
+            statusText = ICONS.check + (currentLang === 'zh' ? '已完成' : 'Completed');
             badgeClass = 'badge-completed';
         } else if (item.status === 'failed') {
-            statusText = '❌ ' + (currentLang === 'zh' ? '失败' : 'Failed');
+            statusText = ICONS.error + (currentLang === 'zh' ? '失败' : 'Failed');
             badgeClass = 'badge-failed';
         } else if (item.status === 'skipped') {
-            statusText = '⏭️ ' + TRANSLATIONS[currentLang].statusSkipped;
+            statusText = ICONS.skip + TRANSLATIONS[currentLang].statusSkipped;
             badgeClass = 'badge-skipped';
         }
 
@@ -1006,9 +1018,8 @@ function updateQueueUI() {
         }
 
         // Per-row action buttons — vary by status
-        // pending:  ⬆️ move-top  ⏭️ skip  🗑️ delete
-        // failed:              ⏭️ skip  🗑️ delete
-        // skipped:                      🗑️ delete
+        // Actions vary by state: pending can move, skip, or delete;
+        // failed can skip or delete; skipped can only be deleted.
         // generating / completed: (none)
         const canDelete  = ['pending', 'failed', 'skipped'].includes(item.status);
         const canSkip    = ['pending', 'failed'].includes(item.status);
@@ -1408,11 +1419,11 @@ function createImageItem(item) {
     wrapper.innerHTML = `
         <img src="${imageUrl}" alt="${escapeHtml(item.prompt)}" loading="lazy">
         <div class="image-rating-bar">
-            <button class="btn-rate btn-like${rating === 'like' ? ' active' : ''}" title="\uD83D\uDC4D" data-filename="${item.filename}">👍</button>
-            <button class="btn-rate btn-dislike${rating === 'dislike' ? ' active' : ''}" title="\uD83D\uDC4E" data-filename="${item.filename}">👎</button>
+            <button class="btn-rate btn-like${rating === 'like' ? ' active' : ''}" title="${currentLang === 'zh' ? '喜欢' : 'Like'}" aria-label="${currentLang === 'zh' ? '喜欢' : 'Like'}" data-filename="${item.filename}">${ICONS.like}</button>
+            <button class="btn-rate btn-dislike${rating === 'dislike' ? ' active' : ''}" title="${currentLang === 'zh' ? '不喜欢' : 'Dislike'}" aria-label="${currentLang === 'zh' ? '不喜欢' : 'Dislike'}" data-filename="${item.filename}">${ICONS.dislike}</button>
         </div>
         <div class="image-meta-overlay">
-            <span class="image-seed-badge">🌱 ${item.seed_used}</span>
+            <span class="image-seed-badge">${ICONS.seed}${item.seed_used}</span>
             <button class="btn-regenerate-single" title="${titleText}">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M23 4v6h-6"></path>

@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="index.css">
 </head>
 <body>
+    <a class="skip-link" href="#mainWorkspace">Skip to workspace</a>
     <!-- Spotlight Top Ambient Glow -->
     <div class="spotlight-banner"></div>
 
@@ -24,7 +25,7 @@
                 </svg>
                 <div class="logo-text">
                     <h1>Z-Image-Turbo</h1>
-                    <span class="version-label">v1.2.0</span>
+                    <span class="version-label">v1.3.0</span>
                 </div>
             </div>
             <div class="status-panel">
@@ -53,7 +54,7 @@
         </header>
 
         <!-- Main Bento Workspace -->
-        <main class="workspace-layout">
+        <main class="workspace-layout" id="mainWorkspace">
             <!-- Left Bento Column: Inputs & Config -->
             <section class="bento-card input-panel">
                 <div class="card-header">
@@ -123,7 +124,9 @@
                                 </select>
                                 <span class="field-desc" id="modelDesc" data-i18n="descModel">Select the active image generation model. Switching models will restart/reload the GPU resources.</span>
                                 <div id="modelLoadingArea" class="model-loading-area" style="display: none;">
-                                    <span class="spinner">⚙️</span>
+                                    <span class="spinner" aria-hidden="true">
+                                        <svg class="ui-icon icon-spin" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"></path></svg>
+                                    </span>
                                     <span id="modelLoadingText">Loading components...</span>
                                 </div>
                             </div>
@@ -218,7 +221,10 @@
                             <div class="progress-info">
                                 <span class="progress-label">
                                     <span data-i18n="totalProgress">Total Progress</span>
-                                    <span id="queueTotalTimer" class="total-timer" style="display: none;">⏱️ 00:00</span>
+                                    <span id="queueTotalTimer" class="total-timer" style="display: none;">
+                                        <svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 1.5M9 2h6"></path></svg>
+                                        <span class="timer-value">00:00</span>
+                                    </span>
                                 </span>
                                 <span class="progress-value" id="queueProgressValue">0 / 0 (0%)</span>
                             </div>
@@ -235,7 +241,9 @@
                         </div>
                         <div class="queue-list" id="queueList">
                             <div class="empty-state">
-                                <span class="empty-icon">🏖️</span>
+                                <span class="empty-icon" aria-hidden="true">
+                                    <svg class="ui-icon" viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5-8 4.5-8-4.5Z"></path><path d="m4 12 8 4.5 8-4.5M4 16.5 12 21l8-4.5"></path></svg>
+                                </span>
                                 <p>Queue is empty. Add prompts on the left to start generating!</p>
                             </div>
                         </div>
@@ -260,10 +268,10 @@
                 <div class="gallery-actions">
                     <div class="gallery-filter-bar">
                         <span class="filter-label" data-i18n="filterLabel">Filter</span>
-                        <button id="filterAll" class="filter-btn active" data-filter="all">🖼️ <span data-i18n="filterAll">All</span></button>
-                        <button id="filterLiked" class="filter-btn" data-filter="liked">👍 <span data-i18n="filterLiked">Liked</span></button>
-                        <button id="filterDisliked" class="filter-btn filter-dislike" data-filter="disliked">👎 <span data-i18n="filterDisliked">Disliked</span></button>
-                        <button id="filterHideDisliked" class="filter-btn" data-filter="hide-disliked">🙈 <span data-i18n="filterHideDisliked">Hide Disliked</span></button>
+                        <button id="filterAll" class="filter-btn active" data-filter="all"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><circle cx="8.5" cy="9" r="1.5"></circle><path d="m4 17 5-5 4 4 3-3 4 4"></path></svg><span data-i18n="filterAll">All</span></button>
+                        <button id="filterLiked" class="filter-btn" data-filter="liked"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10v11H3V10h4Zm0 9c3 2 8 2 10 1l3-7c.5-1.5-.5-3-2-3h-5l1-5c.2-1.4-1-2.4-2-1l-5 6"></path></svg><span data-i18n="filterLiked">Liked</span></button>
+                        <button id="filterDisliked" class="filter-btn filter-dislike" data-filter="disliked"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 14V3H3v11h4Zm0-9c3-2 8-2 10-1l3 7c.5 1.5-.5 3-2 3h-5l1 5c.2 1.4-1 2.4-2 1l-5-6"></path></svg><span data-i18n="filterDisliked">Disliked</span></button>
+                        <button id="filterHideDisliked" class="filter-btn" data-filter="hide-disliked"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 4.2A10.8 10.8 0 0 1 12 4c5 0 9 4 10 8a12 12 0 0 1-2 4M6.6 6.6A12 12 0 0 0 2 12c1 4 5 8 10 8 1.4 0 2.7-.3 3.9-.8"></path></svg><span data-i18n="filterHideDisliked">Hide Disliked</span></button>
                     </div>
                     <button id="openFolderBtn" class="btn secondary-btn">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -307,7 +315,7 @@
                             <polyline points="15 18 9 12 15 6"></polyline>
                         </svg>
                     </button>
-                    <img id="lightboxImg" src="" alt="Full size preview">
+                    <img id="lightboxImg" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="Full size preview">
                     <button id="lightboxNextBtn" class="lightbox-nav-btn next-btn" title="Next Image">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="9 18 15 12 9 6"></polyline>
