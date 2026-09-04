@@ -6,4 +6,6 @@
 
 - GitHub Repo: [holynova/image_local_llm](https://github.com/holynova/image_local_llm)
 - GitHub Pages: [https://holynova.github.io/image_local_llm/](https://holynova.github.io/image_local_llm/)
+- Cloudflare 静态预览: [https://image-local-llm.xiaosang.cc/](https://image-local-llm.xiaosang.cc/)
 
+Cloudflare 发布 `static/` 中的前端页面；图像生成和队列接口依赖本地 Python/FastAPI、PyTorch 及模型环境，仍需在本地运行 `server.py`。
