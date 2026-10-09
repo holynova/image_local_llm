@@ -1,0 +1,17 @@
+studio_models:
+  base_path: G:/AI/Models/z-image-turbo-comfy/split_files
+  diffusion_models: diffusion_models
+  text_encoders: text_encoders
+  vae: vae
+studio_sdxl:
+  base_path: G:/AI/Models/sdxl-turbo
+  checkpoints: .
+studio_qwen21:
+  base_path: G:/AI/Models/qwen-image-2.1
+  diffusion_models: diffusion_models
+  text_encoders: text_encoders
+  vae: vae
+studio_flux2:
+  base_path: G:/AI/Models/flux2-klein-4b
+  diffusion_models: diffusion_models
+  vae: vae

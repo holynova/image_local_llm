@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Z-Image-Turbo Workspace</title>
+    <title>Local Image Studio</title>
+    <link rel="icon" href="data:,">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="index.css">
+    <link rel="stylesheet" href="index.css?v=1.4.0">
 </head>
 <body>
     <a class="skip-link" href="#mainWorkspace">Skip to workspace</a>
@@ -24,8 +25,8 @@
                     <polyline points="2 12 12 17 22 12"></polyline>
                 </svg>
                 <div class="logo-text">
-                    <h1>Z-Image-Turbo</h1>
-                    <span class="version-label">v1.3.0</span>
+                    <h1 data-i18n="navTitle">Local Image Studio</h1>
+                    <span class="version-label">v1.4.0</span>
                 </div>
             </div>
             <div class="status-panel">
@@ -68,6 +69,15 @@
                     <span class="micro-badge" data-i18n="bulkMode">Bulk Mode</span>
                 </div>
                 <div class="card-body">
+                    <div class="input-group model-chooser">
+                        <label for="modelSelect" data-i18n="workflowLabel">Model</label>
+                        <div class="model-chooser-controls">
+                            <select id="modelSelect"><option value="">Loading models…</option></select>
+                            <button id="refreshWorkflowsBtn" class="btn secondary-btn" type="button" data-i18n="refreshWorkflows">Refresh models</button>
+                        </div>
+                        <span class="field-desc" id="modelDesc" role="status">Connecting to ComfyUI…</span>
+                        <span class="field-desc" id="modelSwitchStatus" role="status" data-i18n="modelSwitchHint">Switching updates waiting tasks too. Active generation finishes with its original model.</span>
+                    </div>
                     <div class="input-group">
                         <label for="promptTextArea" data-i18n="promptsLabel">Prompts (One prompt per line)</label>
                         <textarea id="promptTextArea" placeholder="Beijing Temple of Heaven, cute 3D cartoon style...&#10;Shanghai Oriental Pearl Tower, cute 3D chibi style...&#10;Tokyo Tower, pop mart style resin refrigerator magnet..."></textarea>
@@ -95,12 +105,15 @@
                                 </svg>
                                 <span data-i18n="promptHistory">Prompt History</span>
                             </span>
-                            <button id="clearHistoryBtn" class="btn-clear-history" title="Clear History" data-i18n-title="clearHistoryTitle">
+                            <div class="history-actions">
+                            <button id="historyToggleBtn" class="history-toggle" aria-controls="historyList" aria-expanded="true">Collapse</button>
+                            <button id="clearHistoryBtn" class="btn-clear-history" title="Clear History" data-i18n-title="clearHistoryTitle" aria-label="Clear History">
                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <polyline points="3 6 5 6 21 6"></polyline>
                                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                                 </svg>
                             </button>
+                            </div>
                         </div>
                         <div class="history-list" id="historyList">
                             <div class="history-empty" data-i18n="historyEmpty">No prompt history yet.</div>
@@ -115,40 +128,32 @@
                                 <polyline points="6 9 12 15 18 9"></polyline>
                             </svg>
                         </div>
+                        <div class="parameter-advice">
+                            <p id="modelParameterAdvice" role="status"></p>
+                            <button id="resetRecommendedBtn" type="button" class="history-toggle" data-i18n="resetRecommended">Restore recommended values</button>
+                        </div>
                         <div class="config-grid">
-                            <div class="input-field" style="grid-column: span 2;">
-                                <label for="modelSelect" data-i18n="modelLabel">Model</label>
-                                <select id="modelSelect">
-                                    <option value="Z-Image-Turbo" selected>Z-Image-Turbo (Distilled, 9 Steps)</option>
-                                    <option value="Ideogram-4-NF4">Ideogram 4 (NF4, 4-bit, 48 Steps)</option>
-                                </select>
-                                <span class="field-desc" id="modelDesc" data-i18n="descModel">Select the active image generation model. Switching models will restart/reload the GPU resources.</span>
-                                <div id="modelLoadingArea" class="model-loading-area" style="display: none;">
-                                    <span class="spinner" aria-hidden="true">
-                                        <svg class="ui-icon icon-spin" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7"></path></svg>
-                                    </span>
-                                    <span id="modelLoadingText">Loading components...</span>
-                                </div>
+                            <div class="input-field">
+                                <label for="imagesPerPromptInput" data-i18n="imagesPerPromptLabel">Images per prompt</label>
+                                <input type="number" id="imagesPerPromptInput" value="1" min="1" max="100" step="1" aria-describedby="imagesPerPromptDesc">
+                                <span class="field-desc" id="imagesPerPromptDesc" data-i18n="imagesPerPromptDesc">1–100 per prompt, up to 1000 images per batch. Random seeds vary; fixed seeds increment for each image.</span>
                             </div>
                             <div class="input-field">
                                 <label for="resolutionSelect" data-i18n="resolutionLabel">Resolution</label>
                                 <select id="resolutionSelect">
-                                    <option value="1024x1024" data-i18n="resolutionOptionSquare" selected>1024 × 1024 (Square)</option>
-                                    <option value="768x1024" data-i18n="resolutionOptionPortrait">768 × 1024 (Portrait)</option>
-                                    <option value="1024x768" data-i18n="resolutionOptionLandscape">1024 × 768 (Landscape)</option>
-                                    <option value="512x512" data-i18n="resolutionOptionFast">512 × 512 (Fast draft)</option>
+                                    <option value="1024x1024" selected>1024 × 1024 · 1:1</option>
                                 </select>
-                                <span class="field-desc" data-i18n="descResolution">Z-Image-Turbo is optimized for 1024x1024. Smaller dimensions run faster.</span>
+                                <span class="field-desc" id="resolutionAdvice"></span>
                             </div>
                             <div class="input-field">
                                 <label for="stepsInput" data-i18n="stepsLabel">Inference Steps</label>
-                                <input type="number" id="stepsInput" value="9" min="1" max="50">
-                                <span class="field-desc" data-i18n="descSteps">Z-Image-Turbo is distilled: use 9 steps. Higher values do not help quality.</span>
+                                <input type="number" id="stepsInput" value="9" min="1" max="100" aria-describedby="stepsAdvice">
+                                <span class="field-desc" id="stepsAdvice"></span>
                             </div>
                             <div class="input-field">
                                 <label for="guidanceInput" data-i18n="guidanceLabel">Guidance Scale</label>
-                                <input type="number" id="guidanceInput" value="0.0" min="0.0" max="10.0" step="0.5">
-                                <span class="field-desc" data-i18n="descGuidance">Must be 0.0. Higher values will corrupt or black out the image.</span>
+                                <input type="number" id="guidanceInput" value="1.0" min="0.0" max="30.0" step="0.5">
+                                <span class="field-desc" id="cfgAdvice"></span>
                             </div>
                             <div class="input-field">
                                 <label for="seedInput" data-i18n="seedLabel">Seed (-1 for random)</label>
@@ -189,6 +194,9 @@
                             <span class="badge-status badge-idle" id="queueStatusBadge" data-i18n="queueStatusIdle">Idle</span>
                         </div>
                         <div class="queue-controls">
+                            <button id="shuffleQueueBtn" class="ctrl-btn" title="Shuffle waiting tasks" data-i18n-title="titleShuffle" aria-label="Shuffle waiting tasks" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 3 3 3-3 3M18 15l3 3-3 3M3 6h3c5 0 7 12 12 12h3M3 18h3c2 0 3-2 5-5M14 8c1-2 2-2 4-2h3"/></svg>
+                            </button>
                             <button id="pauseQueueBtn" class="ctrl-btn" title="Pause Queue" data-i18n-title="titlePause" style="display: none;">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <rect x="6" y="4" width="4" height="16"></rect>
@@ -326,6 +334,10 @@
                 <div class="lightbox-meta">
                     <h3 data-i18n="lightboxTitle">Metadata</h3>
                     <div class="meta-item">
+                        <strong data-i18n="metaModel">Image model:</strong>
+                        <p id="metaModel"></p>
+                    </div>
+                    <div class="meta-item">
                         <strong data-i18n="metaPrompt">Prompt:</strong>
                         <p id="metaPrompt"></p>
                     </div>
@@ -409,6 +421,6 @@
     <!-- Toast Container -->
     <div class="toast-container" id="toastContainer"></div>
     
-    <script src="index.js"></script>
+    <script src="index.js?v=20261009-model-parameters"></script>
 </body>
 </html>

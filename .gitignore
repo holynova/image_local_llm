@@ -1,6 +1,11 @@
 # Python virtual environment
 venv/
 .venv/
+.venv-comfy/
+data/
+.playwright-cli/
+output/
+tools/bin/
 env/
 
 # Python caching & bytecode
@@ -21,10 +26,14 @@ Thumbs.db
 static/outputs/
 *.png
 !screenshot.png
+!static/prototypes/assets/*.png
 
 # IDE configuration folders
 .vscode/
 .idea/
+.claude/
+.codex/
+.cursor/
 
 # HF Cache
 .cache/

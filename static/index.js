@@ -8,6 +8,146 @@ let pollQueueInterval = null;
 let activeLightboxItem = null; // Track currently open image in lightbox
 let queueTimerInterval = null;
 let galleryFilter = 'all'; // 'all' | 'liked' | 'disliked' | 'hide-disliked'
+let workflowOptions = [];
+let modelSwitchInFlight = false;
+let galleryImages = [];
+let hiddenGalleryFiles = new Set(JSON.parse(localStorage.getItem('hiddenGalleryFiles') || '[]'));
+
+async function loadWorkflows() {
+    const select = document.getElementById('modelSelect');
+    const firstLoad = workflowOptions.length === 0;
+    const previous = select.value || localStorage.getItem('preferredWorkflow');
+    try {
+        const res = await fetch('/api/workflows');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        workflowOptions = (await res.json()).workflows;
+        select.replaceChildren(...workflowOptions.map(item => {
+            const option = document.createElement('option');
+            option.value = item.id;
+            option.textContent = item.label + (item.available ? '' : (currentLang === 'zh' ? ' · 不可用' : ' · unavailable'));
+            return option;
+        }));
+        if (workflowOptions.some(w => w.id === previous)) select.value = previous;
+        updateWorkflow(firstLoad || !previous);
+    } catch (err) {
+        document.getElementById('modelDesc').textContent = err.message;
+        document.getElementById('addToQueueBtn').disabled = true;
+    }
+}
+
+function updateWorkflow(applyDefaults = true) {
+    const selected = workflowOptions.find(w => w.id === document.getElementById('modelSelect').value);
+    if (selected) localStorage.setItem('preferredWorkflow', selected.id);
+    document.getElementById('addToQueueBtn').disabled = !selected?.available;
+    document.getElementById('modelDesc').textContent = selected
+        ? (selected.available ? selected.description : selected.problems.join('; ')) : 'No workflows configured';
+    if (!selected?.available) document.getElementById('configPane').classList.remove('collapsed');
+    if (selected) renderModelParameters(selected, applyDefaults);
+    if (selected && applyDefaults) {
+        stepsInput.value = selected.defaults.steps;
+        guidanceInput.value = selected.defaults.guidance_scale;
+        const resolution = `${selected.defaults.width}x${selected.defaults.height}`;
+        if (Array.from(resolutionSelect.options).some(o => o.value === resolution)) resolutionSelect.value = resolution;
+    }
+}
+
+function aspectRatio(width, height) {
+    let a = width, b = height;
+    while (b) [a, b] = [b, a % b];
+    return `${width / a}:${height / a}`;
+}
+
+function modelResolutions(workflow) {
+    const { width, height } = workflow.defaults;
+    const base = Math.min(width, height);
+    const presets = [[width, height], [base, base], [base, base * 3 / 4], [base * 3 / 4, base]];
+    const wide = { 512: [768, 432], 768: [1024, 576], 1024: [1280, 720] }[base];
+    if (wide) presets.push(wide, [wide[1], wide[0]]);
+    const photo = { 512: [576, 384], 768: [864, 576], 1024: [1152, 768] }[base];
+    if (photo) presets.push(photo, [photo[1], photo[0]]);
+    presets.push([512, 512]);
+    return presets.filter(([w, h]) => Number.isInteger(w) && Number.isInteger(h) && w % 8 === 0 && h % 8 === 0)
+        .filter(([w, h], i, all) => all.findIndex(([x, y]) => x === w && y === h) === i);
+}
+
+function renderModelParameters(selected, applyDefaults) {
+    const zh = currentLang === 'zh';
+    const defaults = selected.defaults;
+    const previous = resolutionSelect.value;
+    const recommended = `${defaults.width}x${defaults.height}`;
+    resolutionSelect.replaceChildren(...modelResolutions(selected).map(([w, h]) => {
+        const option = document.createElement('option');
+        option.value = `${w}x${h}`;
+        const orientation = w === h ? (zh ? '正方形' : 'Square') : w > h ? (zh ? '横图' : 'Landscape') : (zh ? '竖图' : 'Portrait');
+        option.textContent = `${w} × ${h} · ${aspectRatio(w, h)} ${orientation}${option.value === recommended ? (zh ? ' · 推荐' : ' · Recommended') : ''}`;
+        return option;
+    }));
+    resolutionSelect.value = !applyDefaults && Array.from(resolutionSelect.options).some(o => o.value === previous) ? previous : recommended;
+    const notes = {
+        'z-image-turbo': zh ? '蒸馏模型，当前工作流建议 9 步；单纯增加步数不一定提升质量。ComfyUI 的 CFG 1 不等同于 Diffusers 的 guidance 0。' : 'Distilled workflow: start with 9 steps. More steps may not improve quality. ComfyUI CFG 1 differs from Diffusers guidance 0.',
+        'sdxl-turbo': zh ? '快速草稿模型，当前工作流采用 4 步，也可尝试 1–4 步。优先使用 512 方图和英文提示词，其他比例可尝试比较。' : 'Fast draft workflow: 4 steps by default; try 1–4 steps. Prefer 512 square images and English prompts; compare results for other ratios.',
+        'qwen-image-2.1-int8': zh ? '本机 16GB 显存的稳定配置：INT8、CPU 文本编码器与 VAE，建议先用 768 方图、25 步。支持中文提示词，首次加载较慢。' : 'Conservative local 16GB profile: INT8, CPU text encoder and VAE. Start at 768 square and 25 steps. Chinese prompts supported; initial loading is slower.'
+    };
+    document.getElementById('modelParameterAdvice').textContent = `${selected.label} — ${notes[selected.id] || selected.description} ${zh ? '以下为当前工作流建议值，可手动调整；恢复推荐仅调整新任务的参数。' : 'These are workflow defaults, not hard limits. Restore applies only to parameters for new tasks.'}`;
+    document.getElementById('resolutionAdvice').textContent = zh ? `建议 ${defaults.width} × ${defaults.height}（${aspectRatio(defaults.width, defaults.height)}）。更大尺寸会增加显存占用和耗时。` : `Recommended: ${defaults.width} × ${defaults.height} (${aspectRatio(defaults.width, defaults.height)}). Larger images use more memory and time.`;
+    document.getElementById('stepsAdvice').textContent = zh ? `建议值：${defaults.steps} 步。可调整范围 1–100，不同模型的步数不能直接比较。` : `Recommended: ${defaults.steps} steps. Adjustable 1–100; step counts are not comparable across models.`;
+    document.getElementById('cfgAdvice').textContent = zh ? `当前工作流建议 CFG ${defaults.guidance_scale}；不是数值越高越好。` : `Workflow recommendation: CFG ${defaults.guidance_scale}; higher is not necessarily better.`;
+}
+
+async function handleModelChange() {
+    if (modelSwitchInFlight) return;
+    const select = document.getElementById('modelSelect');
+    const previous = localStorage.getItem('preferredWorkflow');
+    const target = select.value;
+    const status = document.getElementById('modelSwitchStatus');
+    const refresh = document.getElementById('refreshWorkflowsBtn');
+    modelSwitchInFlight = true;
+    select.disabled = refresh.disabled = true;
+    document.getElementById('addToQueueBtn').disabled = true;
+    status.removeAttribute('data-i18n');
+    status.textContent = TRANSLATIONS[currentLang].modelSwitchBusy;
+    try {
+        const response = await fetch('/api/queue/model', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ workflow_id: target })
+        });
+        if (!response.ok) throw new Error(await apiError(response));
+        const result = await response.json();
+        updateWorkflow();
+        status.textContent = TRANSLATIONS[currentLang].modelSwitchDone.replace('{count}', result.updated);
+        showToast(status.textContent, 'success');
+        await syncQueueState();
+    } catch (err) {
+        if (previous && workflowOptions.some(w => w.id === previous)) select.value = previous;
+        updateWorkflow(false);
+        status.textContent = TRANSLATIONS[currentLang].modelSwitchFailed + err.message;
+        showToast(status.textContent, 'error');
+    } finally {
+        modelSwitchInFlight = false;
+        select.disabled = refresh.disabled = false;
+        updateWorkflow(false);
+    }
+}
+
+async function apiError(response) {
+    const body = await response.json().catch(() => ({}));
+    if (typeof body.detail === 'string') return body.detail;
+    if (Array.isArray(body.detail)) return body.detail.map(error => {
+        const field = error.loc?.filter(part => part !== 'body').join('.') || 'request';
+        if (field === 'prompts' && error.type === 'too_long') {
+            return currentLang === 'zh' ? `每批最多 ${error.ctx.max_length} 条提示词，请分批提交。` : `Maximum ${error.ctx.max_length} prompts per batch.`;
+        }
+        return `${field}: ${error.msg}`;
+    }).join('; ');
+    return `HTTP ${response.status}`;
+}
+
+async function syncPersistentGallery() {
+    const response = await fetch('/api/gallery');
+    if (!response.ok) return;
+    galleryImages = (await response.json()).images;
+    syncGalleryUI();
+}
 
 const ICONS = {
     clock: '<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>',
@@ -24,8 +164,16 @@ const ICONS = {
 // Translations Dictionary and State
 const TRANSLATIONS = {
     en: {
-        title: "Z-Image-Turbo Workspace",
-        navTitle: "Z-Image-Turbo",
+        workflowLabel: 'Image model',
+        refreshWorkflows: 'Refresh models',
+        modelSwitchHint: 'Switching updates waiting tasks too, using recommended parameters. Active generation keeps its original model.',
+        modelSwitchBusy: 'Updating waiting tasks…',
+        modelSwitchDone: 'Model switched: {count} waiting tasks updated. Active generation is unchanged.',
+        modelSwitchFailed: 'Switch failed; queue unchanged: ',
+        comfyCfgDesc: 'Use the generation workflow’s default CFG.',
+        title: "Local Image Studio",
+        navTitle: "Local Image Studio",
+        resetRecommended: "Restore recommended values",
         statusConnecting: "Connecting...",
         statusReady: "Server: Connected (Ready)",
         statusGenerating: "Server: Generating...",
@@ -64,6 +212,10 @@ const TRANSLATIONS = {
         downloadAllBtn: "Download All",
         lightboxTitle: "Metadata",
         metaPrompt: "Prompt:",
+        metaModel: "Image model:",
+        imagesPerPromptLabel: "Images per prompt",
+        imagesPerPromptDesc: "1–100 per prompt, up to 1000 images per batch. Random seeds vary; fixed seeds increment for each image.",
+        unknownModel: "Unknown model (not recorded)",
         metaResolution: "Resolution:",
         metaSteps: "Steps:",
         metaSeed: "Seed:",
@@ -76,8 +228,8 @@ const TRANSLATIONS = {
         clearHistoryTitle: "Clear Prompt History",
         
         // Parameter descriptions
-        descResolution: "Optimized for 1024x1024. Smaller sizes generate faster but might lower quality.",
-        descSteps: "Turbo model only needs 9 steps. Higher values won't improve quality and waste time.",
+        descResolution: "Choose a size supported by the generation workflow. Smaller sizes generally run faster.",
+        descSteps: "Use the selected workflow's default sampling steps as a starting point.",
         descGuidance: "Must be 0.0. Higher values will corrupt the image (turn it completely black).",
         descSeed: "Use -1 for new random images. Set a fixed number to keep the same composition.",
         
@@ -86,7 +238,7 @@ const TRANSLATIONS = {
         logPromptCleared: "Prompt input cleared.",
         logGalleryCleared: "Gallery cleared.",
         logLogsCleared: "System logs cleared.",
-        logServerReady: "Successfully connected to Z-Image-Turbo backend.",
+        logServerReady: "Successfully connected to the image generation backend.",
         logServerIdle: "Server status: Connected (Idle)",
         logServerBusy: "Server status: Busy (GPU active)",
         logServerErr: "Server status: Error response from endpoint",
@@ -106,9 +258,13 @@ const TRANSLATIONS = {
         logStopSuccess: "Generation stopped. Active task reset to pending.",
         logStopErr: "Error stopping task: {err}",
         logWipeReq: "Requesting queue wipe...",
-        logWipeSuccess: "Queue history and gallery reset successfully.",
+        logWipeSuccess: "Queue cleared. Generated images and active generation are preserved.",
         logWipeErr: "Error wiping queue: {err}",
-        confirmClearQueue: "Are you sure you want to clear the entire queue history? This will stop active runs.",
+        confirmClearQueue: "Clear waiting tasks and queue history? Generated images are kept, and the current task continues. Unresolved tasks remain for safety.",
+        titleShuffle: "Shuffle waiting tasks (current task unchanged)",
+        toastShuffled: "Shuffled {count} waiting tasks. Current generation is unchanged.",
+        historyCollapse: "Collapse",
+        historyExpand: "Expand · View more",
         confirmClearGallery: "Are you sure you want to clear the gallery?",
         promptAlert: "Please enter at least one prompt!",
         noValidPrompts: "No valid prompts found!",
@@ -126,7 +282,7 @@ const TRANSLATIONS = {
         titlePause: "Pause Queue",
         titleResume: "Resume Queue",
         titleStop: "Abort Active Task & Pause",
-        titleClearQueue: "Clear Entire Queue History",
+        titleClearQueue: "Clear queue (keep generated images)",
         
         // Task row management
         btnDelete: "Remove task",
@@ -161,8 +317,16 @@ const TRANSLATIONS = {
         toastStopped: "Server has stopped.",
     },
     zh: {
-        title: "Z-Image-Turbo 工作区",
-        navTitle: "Z-Image-Turbo",
+        workflowLabel: '生图模型',
+        refreshWorkflows: '刷新模型',
+        modelSwitchHint: '切换模型会同步更新等待任务，并采用推荐参数；正在生成的任务保持原模型。',
+        modelSwitchBusy: '正在更新等待任务的模型…',
+        modelSwitchDone: '模型已切换，更新了 {count} 个等待任务；当前生成不受影响。',
+        modelSwitchFailed: '切换失败，队列未修改：',
+        comfyCfgDesc: '使用生成方案的默认 CFG 值。',
+        title: "本地绘图工作台",
+        navTitle: "本地绘图工作台",
+        resetRecommended: "恢复推荐值",
         statusConnecting: "正在连接...",
         statusReady: "服务器: 已连接 (空闲)",
         statusGenerating: "服务器: 正在作图...",
@@ -201,6 +365,10 @@ const TRANSLATIONS = {
         downloadAllBtn: "下载全部图片",
         lightboxTitle: "元数据",
         metaPrompt: "提示词:",
+        metaModel: "生图模型:",
+        imagesPerPromptLabel: "每条提示词生成数量（抽奖次数）",
+        imagesPerPromptDesc: "每条 1–100 张，每批最多 1000 张。随机种子每张独立；固定种子逐张递增。",
+        unknownModel: "未知模型（未记录）",
         metaResolution: "分辨率:",
         metaSteps: "步数:",
         metaSeed: "种子:",
@@ -213,8 +381,8 @@ const TRANSLATIONS = {
         clearHistoryTitle: "清空历史记录",
         
         // Parameter descriptions
-        descResolution: "模型最擅长 1024x1024。尺寸越小画图越快，但画质可能会降低。",
-        descSteps: "快速蒸馏模型，推荐 9 步。步数再高也不会变好看，纯属浪费时间。",
+        descResolution: "选择生成方案支持的尺寸，较小的尺寸通常生成更快。",
+        descSteps: "以当前生成方案的默认采样步数为起点。",
         descGuidance: "必须设为 0.0。设大了解析会报错或直接画出一张大黑图。",
         descSeed: "设为 -1 每次都是全新画面。固定一个数字可以保持画面布局不变，方便微调词。",
         
@@ -223,7 +391,7 @@ const TRANSLATIONS = {
         logPromptCleared: "提示词输入已清空。",
         logGalleryCleared: "画廊已清空。",
         logLogsCleared: "系统日志已清空。",
-        logServerReady: "成功连接到 Z-Image-Turbo 后端。",
+        logServerReady: "成功连接到生图后端。",
         logServerIdle: "服务器状态：已连接 (空闲)",
         logServerBusy: "服务器状态：繁忙 (GPU 活动中)",
         logServerErr: "服务器状态：接口返回错误",
@@ -243,9 +411,13 @@ const TRANSLATIONS = {
         logStopSuccess: "生成已终止。当前任务已重置为等待状态。",
         logStopErr: "终止任务时出错: {err}",
         logWipeReq: "正在请求清空队列...",
-        logWipeSuccess: "队列历史和画廊已成功重置。",
+        logWipeSuccess: "队列已清空，已生成图片保留，当前生成不受影响。",
         logWipeErr: "清空队列时出错: {err}",
-        confirmClearQueue: "确定要清空所有队列历史吗？这会终止当前正在运行的任务。",
+        confirmClearQueue: "清空等待任务和队列历史？已生成图片会保留，当前任务继续生成。状态未确认的任务将保留，避免丢失追踪。",
+        titleShuffle: "打乱等待任务（不影响当前生成）",
+        toastShuffled: "已打乱 {count} 个等待任务，当前生成保持不变。",
+        historyCollapse: "收起",
+        historyExpand: "展开 · 查看更多",
         confirmClearGallery: "确定要清空画廊吗？",
         promptAlert: "请输入至少一个提示词！",
         noValidPrompts: "未找到有效的提示词！",
@@ -263,7 +435,7 @@ const TRANSLATIONS = {
         titlePause: "暂停队列",
         titleResume: "恢复队列",
         titleStop: "终止当前任务并暂停",
-        titleClearQueue: "清空整个队列历史",
+        titleClearQueue: "清空队列（保留已生成图片）",
         
         // Task row management
         btnDelete: "删除任务",
@@ -327,6 +499,8 @@ const pauseQueueBtn = document.getElementById('pauseQueueBtn');
 const resumeQueueBtn = document.getElementById('resumeQueueBtn');
 const stopQueueBtn = document.getElementById('stopQueueBtn');
 const clearQueueBtn = document.getElementById('clearQueueBtn');
+const shuffleQueueBtn = document.getElementById('shuffleQueueBtn');
+let shuffleInFlight = false;
 
 // Lightbox Elements
 const lightboxOverlay = document.getElementById('lightboxOverlay');
@@ -361,6 +535,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // Initial sync
+    loadWorkflows();
+    document.getElementById('modelSelect').addEventListener('change', handleModelChange);
+    document.getElementById('refreshWorkflowsBtn').addEventListener('click', loadWorkflows);
+    syncPersistentGallery().catch(() => {});
     pollServerStatus();
     syncQueueState();
     
@@ -415,6 +593,7 @@ function setLanguage(lang) {
     // Redraw queue to localize statuses
     updateQueueUI();
     updateHistoryUI();
+    if (workflowOptions.length) updateWorkflow(false);
 }
 
 // Logging Helper
@@ -515,6 +694,9 @@ function resetTotalTimer() {
 
 // Event Listeners Setup
 function setupEventListeners() {
+    document.getElementById('resetRecommendedBtn').addEventListener('click', () => {
+        if (!modelSwitchInFlight) updateWorkflow(true);
+    });
     // Language Selector Toggle
     const langToggleBtn = document.getElementById('langToggleBtn');
     if (langToggleBtn) {
@@ -565,6 +747,12 @@ function setupEventListeners() {
     resumeQueueBtn.addEventListener('click', handleResumeQueue);
     stopQueueBtn.addEventListener('click', handleStopQueue);
     clearQueueBtn.addEventListener('click', handleClearQueue);
+    shuffleQueueBtn.addEventListener('click', handleShuffleQueue);
+    document.getElementById('historyToggleBtn').addEventListener('click', () => {
+        const collapsed = document.getElementById('historyList').hidden;
+        localStorage.setItem('historyCollapsed', String(!collapsed));
+        updateHistoryUI();
+    });
 
     // Clear prompt inputs
     clearInputsBtn.addEventListener('click', () => {
@@ -575,6 +763,8 @@ function setupEventListeners() {
     // Clear Gallery
     clearGalleryBtn.addEventListener('click', () => {
         if (confirm(TRANSLATIONS[currentLang].confirmClearGallery)) {
+            document.querySelectorAll('.group-image-item').forEach(item => hiddenGalleryFiles.add(item.dataset.filename));
+            localStorage.setItem('hiddenGalleryFiles', JSON.stringify([...hiddenGalleryFiles]));
             galleryGrid.innerHTML = '';
             renderedFilenames.clear();
             addLog(TRANSLATIONS[currentLang].logGalleryCleared, 'system');
@@ -807,6 +997,13 @@ async function pollServerStatus() {
         const res = await fetch('/api/status');
         if (res.ok) {
             const data = await res.json();
+            statusIndicator.title = data.error || data.comfyui_url;
+            if (data.status !== 'online') {
+                statusIndicator.className = 'status-indicator status-offline';
+                statusIndicator.textContent = currentLang === 'zh' ? 'ComfyUI 离线' : 'ComfyUI offline';
+                lastConnectionState = 'offline';
+                return;
+            }
             if (data.is_busy) {
                 statusIndicator.className = 'status-indicator status-busy';
                 statusIndicator.textContent = TRANSLATIONS[currentLang].statusGenerating;
@@ -917,10 +1114,11 @@ async function syncQueueState() {
 // Update the Queue Table, badging, and button visibility based on backend state
 function updateQueueUI() {
     if (!queueCountBadge) return;
+    shuffleQueueBtn.disabled = shuffleInFlight || promptQueue.filter(item => item.status === 'pending').length < 2;
     
     // Total progress calculations
     const totalCount = promptQueue.length;
-    const finishedCount = promptQueue.filter(item => item.status === 'completed' || item.status === 'failed').length;
+    const finishedCount = promptQueue.filter(item => ['completed', 'failed', 'skipped'].includes(item.status)).length;
     
     const queueProgressContainer = document.getElementById('queueProgressContainer');
     const queueProgressValue = document.getElementById('queueProgressValue');
@@ -940,7 +1138,7 @@ function updateQueueUI() {
     }
 
     // 1. Update queue count badge
-    const activeCount = promptQueue.filter(item => item.status === 'pending' || item.status === 'generating').length;
+    const activeCount = promptQueue.filter(item => ['pending', 'submitting', 'generating'].includes(item.status)).length;
     queueCountBadge.textContent = TRANSLATIONS[currentLang].queueCountBadge.replace('{count}', activeCount);
 
     // 2. Update status badge
@@ -1003,6 +1201,12 @@ function updateQueueUI() {
         } else if (item.status === 'skipped') {
             statusText = ICONS.skip + TRANSLATIONS[currentLang].statusSkipped;
             badgeClass = 'badge-skipped';
+        } else if (item.status === 'submitting') {
+            statusText = ICONS.loader + (currentLang === 'zh' ? '提交中' : 'Submitting');
+            badgeClass = 'badge-generating';
+        } else if (item.status === 'unknown') {
+            statusText = ICONS.error + (currentLang === 'zh' ? '待核对' : 'Unconfirmed');
+            badgeClass = 'badge-failed';
         }
 
         // Display timing
@@ -1021,8 +1225,8 @@ function updateQueueUI() {
         // Actions vary by state: pending can move, skip, or delete;
         // failed can skip or delete; skipped can only be deleted.
         // generating / completed: (none)
-        const canDelete  = ['pending', 'failed', 'skipped'].includes(item.status);
-        const canSkip    = ['pending', 'failed'].includes(item.status);
+        const canDelete  = ['pending', 'failed', 'skipped', 'unknown'].includes(item.status);
+        const canSkip    = ['pending', 'failed', 'unknown'].includes(item.status);
         const canMoveTop = item.status === 'pending';
 
         let rowActionsHtml = `<span class="col-actions">`;
@@ -1052,7 +1256,7 @@ function updateQueueUI() {
             <span class="col-num">${index + 1}</span>
             <span class="col-prompt" title="${escapeHtml(item.prompt)}">${escapeHtml(item.prompt)}</span>
             <span class="col-status">
-                <span class="q-badge ${badgeClass}">${statusText}</span>
+                <span class="q-badge ${badgeClass}" title="${escapeHtml(item.error_msg || item.workflow_id || '')}">${statusText}${item.progress?.max ? ' ' + Math.round(item.progress.value / item.progress.max * 100) + '%' : ''}</span>
             </span>
             <span class="col-time" id="time_${item.id}">
                 ${timeDisplay}
@@ -1087,11 +1291,13 @@ function updateQueueUI() {
 // Sync completed images to Gallery by grouping prompts dynamically (delta updates)
 function syncGalleryUI() {
     // Filter completed items
-    const completedItems = promptQueue.filter(item => item.status === 'completed' && item.filename);
+    const completedItems = [...galleryImages, ...promptQueue.filter(item => item.status === 'completed' && item.filename)
+        .flatMap(item => (item.filenames?.length ? item.filenames : [item.filename]).map(filename => ({...item, filename})))]
+        .filter(item => !hiddenGalleryFiles.has(item.filename));
     
     completedItems.forEach(item => {
         // Find if a group card for this prompt already exists in galleryGrid
-        let groupCard = findGroupCardByPrompt(item.prompt);
+        let groupCard = findGroupCardByPrompt(item.prompt, item.workflow_id);
         
         if (!groupCard) {
             // Group card doesn't exist, create it!
@@ -1127,6 +1333,7 @@ function syncGalleryUI() {
 
 // Add prompts to backend queue
 async function handleAddToQueue() {
+    if (modelSwitchInFlight) return;
     const text = promptTextArea.value.trim();
     if (!text) {
         alert(TRANSLATIONS[currentLang].promptAlert);
@@ -1151,12 +1358,25 @@ async function handleAddToQueue() {
         alert(TRANSLATIONS[currentLang].noValidPrompts);
         return;
     }
+    const countInput = document.getElementById('imagesPerPromptInput');
+    const imagesPerPrompt = Number(countInput.value);
+    if (!Number.isInteger(imagesPerPrompt) || imagesPerPrompt < 1 || imagesPerPrompt > 100) {
+        countInput.reportValidity();
+        showToast(currentLang === 'zh' ? '每条生成数量必须是 1–100 的整数。' : 'Images per prompt must be an integer from 1 to 100.', 'error');
+        return;
+    }
+    if (prompts.length * imagesPerPrompt > 1000) {
+        showToast(currentLang === 'zh' ? '每批最多生成 1000 张，请减少提示词或每条生成数量。' : 'Maximum 1000 images per batch. Reduce prompts or images per prompt.', 'error');
+        return;
+    }
 
     const resolution = resolutionSelect.value;
     const [width, height] = resolution.split('x').map(Number);
-    const steps = parseInt(stepsInput.value, 10) || 9;
+    const selectedWorkflow = workflowOptions.find(w => w.id === document.getElementById('modelSelect').value);
+    const steps = parseInt(stepsInput.value, 10) || selectedWorkflow?.defaults.steps || 9;
     const guidanceScale = parseFloat(guidanceInput.value) || 0.0;
-    const seed = parseInt(seedInput.value, 10) || -1;
+    const parsedSeed = Number.parseInt(seedInput.value, 10);
+    const seed = Number.isNaN(parsedSeed) ? -1 : parsedSeed;
 
     try {
         // Smart clear: if the previous batch is fully done, clean up queue records
@@ -1177,6 +1397,8 @@ async function handleAddToQueue() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 prompts: prompts,
+                images_per_prompt: imagesPerPrompt,
+                workflow_id: document.getElementById('modelSelect').value,
                 seed: seed,
                 height: height,
                 width: width,
@@ -1188,8 +1410,8 @@ async function handleAddToQueue() {
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
-                addLog(TRANSLATIONS[currentLang].logAddedToQueue.replace('{count}', prompts.length), 'queue');
-                showToast(TRANSLATIONS[currentLang].toastAddedToQueue.replace('{count}', prompts.length), 'success');
+                addLog(TRANSLATIONS[currentLang].logAddedToQueue.replace('{count}', data.added.length), 'queue');
+                showToast(TRANSLATIONS[currentLang].toastAddedToQueue.replace('{count}', data.added.length), 'success');
                 // Save the entire batch text to history
                 savePromptToHistory(text);
                 promptTextArea.value = '';
@@ -1199,8 +1421,9 @@ async function handleAddToQueue() {
                 showToast(TRANSLATIONS[currentLang].toastError.replace('{err}', TRANSLATIONS[currentLang].logFailedQueue), 'error');
             }
         } else {
-            addLog(TRANSLATIONS[currentLang].logErrAddQueue.replace('{status}', response.status), 'error');
-            showToast(TRANSLATIONS[currentLang].toastError.replace('{err}', `HTTP ${response.status}`), 'error');
+            const detail = await apiError(response);
+            addLog(`${TRANSLATIONS[currentLang].logErrAddQueue.replace('{status}', response.status)} ${detail}`, 'error');
+            showToast(TRANSLATIONS[currentLang].toastError.replace('{err}', detail), 'error');
         }
     } catch (err) {
         addLog(TRANSLATIONS[currentLang].logNetworkErr.replace('{err}', err.message), 'error');
@@ -1230,6 +1453,8 @@ async function handleResumeQueue() {
         if (res.ok) {
             showToast(TRANSLATIONS[currentLang].toastResumed, 'success');
             syncQueueState();
+        } else {
+            showToast(await apiError(res), 'error');
         }
     } catch (err) {
         addLog(TRANSLATIONS[currentLang].logResumeErr.replace('{err}', err.message), 'error');
@@ -1244,6 +1469,9 @@ async function handleStopQueue() {
         if (res.ok) {
             addLog(TRANSLATIONS[currentLang].logStopSuccess, 'system');
             showToast(TRANSLATIONS[currentLang].toastStopped, 'info');
+            syncQueueState();
+        } else {
+            showToast(await apiError(res), 'error');
             syncQueueState();
         }
     } catch (err) {
@@ -1260,12 +1488,12 @@ async function handleClearQueue() {
         addLog(TRANSLATIONS[currentLang].logWipeReq, 'system');
         const res = await fetch('/api/queue/clear', { method: 'POST' });
         if (res.ok) {
-            galleryGrid.innerHTML = '';
-            renderedFilenames.clear();
             addLog(TRANSLATIONS[currentLang].logWipeSuccess, 'system');
-            resetTotalTimer();
             showToast(TRANSLATIONS[currentLang].toastQueueCleared, 'success');
-            syncQueueState();
+            await syncQueueState();
+            await syncPersistentGallery();
+        } else {
+            showToast(await apiError(res), 'error');
         }
     } catch (err) {
         addLog(TRANSLATIONS[currentLang].logWipeErr.replace('{err}', err.message), 'error');
@@ -1274,6 +1502,24 @@ async function handleClearQueue() {
 }
 
 // Open output directory locally on Windows PC
+async function handleShuffleQueue() {
+    if (shuffleInFlight) return;
+    shuffleInFlight = true;
+    shuffleQueueBtn.disabled = true;
+    try {
+        const res = await fetch('/api/queue/shuffle', { method: 'POST' });
+        if (!res.ok) throw new Error(await apiError(res));
+        const data = await res.json();
+        showToast(TRANSLATIONS[currentLang].toastShuffled.replace('{count}', data.shuffled), 'success');
+        await syncQueueState();
+    } catch (err) {
+        showToast(TRANSLATIONS[currentLang].toastError.replace('{err}', err.message), 'error');
+    } finally {
+        shuffleInFlight = false;
+        updateQueueUI();
+    }
+}
+
 async function handleOpenFolder() {
     try {
         addLog(currentLang === 'zh' ? '正在请求打开本地输出目录...' : 'Requesting to open local output folder...', 'system');
@@ -1296,10 +1542,19 @@ function handleDownloadAll() {
 }
 
 // Open Lightbox view
+function imageModelLabel(item) {
+    // Use the image's saved workflow, never the currently selected model.
+    return item.workflow_label
+        || workflowOptions.find(workflow => workflow.id === item.workflow_id)?.label
+        || item.workflow_id
+        || TRANSLATIONS[currentLang].unknownModel;
+}
+
 function openLightbox(item) {
     activeLightboxItem = item;
     lightboxImg.src = `/outputs/${item.filename}`;
     metaPrompt.textContent = item.prompt;
+    document.getElementById('metaModel').textContent = imageModelLabel(item);
     metaResolution.textContent = `${item.width} x ${item.height}`;
     metaSteps.textContent = item.steps;
     metaSeed.textContent = item.seed_used;
@@ -1355,14 +1610,14 @@ function closeLightbox() {
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
-    return div.innerHTML;
+    return div.innerHTML.replaceAll('"', '&quot;').replaceAll("'", '&#39;');
 }
 
 // Find a prompt group card in the gallery grid
-function findGroupCardByPrompt(prompt) {
+function findGroupCardByPrompt(prompt, workflowId) {
     const cards = galleryGrid.querySelectorAll('.gallery-group-card');
     for (let card of cards) {
-        if (card.dataset.prompt === prompt) {
+        if (card.dataset.prompt === prompt && card.dataset.workflowId === (workflowId || 'z-image-turbo')) {
             return card;
         }
     }
@@ -1374,6 +1629,7 @@ function createGroupCard(item) {
     const card = document.createElement('div');
     card.className = 'gallery-group-card';
     card.dataset.prompt = item.prompt;
+    card.dataset.workflowId = item.workflow_id || 'z-image-turbo';
     
     // Set localized regenerate group tooltip text
     const titleText = currentLang === 'zh' ? '重新生成提示词' : 'Regenerate Prompt';
@@ -1593,6 +1849,7 @@ async function regeneratePrompt(item, useFixedSeed = false) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 prompts: [item.prompt],
+                workflow_id: item.workflow_id || 'z-image-turbo',
                 seed: useFixedSeed ? item.seed_used : -1,
                 height: item.height,
                 width: item.width,
@@ -1652,6 +1909,13 @@ function loadHistory() {
 function updateHistoryUI() {
     const historyList = document.getElementById('historyList');
     if (!historyList) return;
+    historyList.hidden = localStorage.getItem('historyCollapsed') === 'true';
+    const toggle = document.getElementById('historyToggleBtn');
+    toggle.setAttribute('aria-expanded', String(!historyList.hidden));
+    toggle.textContent = TRANSLATIONS[currentLang][historyList.hidden ? 'historyExpand' : 'historyCollapse'];
+    document.getElementById('clearHistoryBtn').setAttribute('aria-label', TRANSLATIONS[currentLang].clearHistoryTitle);
+    shuffleQueueBtn.setAttribute('aria-label', TRANSLATIONS[currentLang].titleShuffle);
+    clearQueueBtn.setAttribute('aria-label', TRANSLATIONS[currentLang].titleClearQueue);
     const history = loadHistory();
     if (history.length === 0) {
         historyList.innerHTML = `<div class="history-empty" data-i18n="historyEmpty">${TRANSLATIONS[currentLang].historyEmpty}</div>`;
@@ -1659,7 +1923,8 @@ function updateHistoryUI() {
     }
     historyList.innerHTML = '';
     history.forEach(prompt => {
-        const item = document.createElement('div');
+        const item = document.createElement('button');
+        item.type = 'button';
         item.className = 'history-item';
         item.title = prompt;
         item.textContent = prompt.replace(/\n/g, ' ｜ ');

@@ -1,0 +1,38 @@
+[
+  {
+    "id": "z-image-turbo",
+    "label": "Z-Image-Turbo · ComfyUI",
+    "workflow": "z-image-turbo.api.json",
+    "defaults": {"width": 1024, "height": 1024, "steps": 9, "guidance_scale": 1.0},
+    "bindings": {"prompt": "6.text", "seed": "3.seed", "steps": "3.steps", "guidance_scale": "3.cfg", "width": "5.width", "height": "5.height"},
+    "output_nodes": ["9"],
+    "description": "ComfyUI Z-Image-Turbo; CFG 1.0 (not Diffusers guidance 0). Models are managed outside this app."
+  },
+  {
+    "id": "sdxl-turbo",
+    "label": "SDXL Turbo · 快速草稿",
+    "workflow": "sdxl-turbo.api.json",
+    "defaults": {"width": 512, "height": 512, "steps": 4, "guidance_scale": 1.0},
+    "bindings": {"prompt": "6.text", "seed": "3.seed", "steps": "3.steps", "guidance_scale": "3.cfg", "width": "5.width", "height": "5.height"},
+    "output_nodes": ["9"],
+    "description": "SDXL Turbo: 512px, 1–4 steps, CFG 1. Best with English prompts. / 建议英文提示词。"
+  },
+  {
+    "id": "qwen-image-2.1-int8",
+    "label": "Qwen-Image 2.1 · INT8 / 16GB",
+    "workflow": "qwen-image-2.1-int8.api.json",
+    "defaults": {"width": 768, "height": 768, "steps": 25, "guidance_scale": 1.0},
+    "bindings": {"prompt": "6.prompt", "seed": "3.seed", "steps": "3.steps", "guidance_scale": "3.cfg", "width": "5.width", "height": "5.height"},
+    "output_nodes": ["9"],
+    "description": "768px / 25 steps / CFG 1; INT8 + CPU text encoder and VAE. 中文生图，优先稳定性；首次加载较慢。"
+  },
+  {
+    "id": "flux2-klein-4b-fp8",
+    "label": "FLUX.2 klein 4B · FP8 / 16GB",
+    "workflow": "flux2-klein-4b-fp8.api.json",
+    "defaults": {"width": 1024, "height": 1024, "steps": 4, "guidance_scale": 1.0},
+    "bindings": {"prompt": "6.text", "seed": "10.noise_seed", "steps": "12.steps", "guidance_scale": "13.cfg", "width": ["5.width", "12.width"], "height": ["5.height", "12.height"]},
+    "output_nodes": ["9"],
+    "description": "官方 FLUX.2 klein 4B FP8 蒸馏版：建议 1024 方图、4 步、CFG 1。CPU 文本编码器与 VAE 降低显存压力；首次加载较慢。/ Official distilled FP8: 1024px, 4 steps, CFG 1, CPU text encoder and VAE."
+  }
+]

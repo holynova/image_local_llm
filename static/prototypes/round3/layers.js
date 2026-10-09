@@ -1,0 +1,2 @@
+// THESIS: layer-like list, multiselect and adjacent properties for dense batch task management.
+function renderLayers(){return `<main class="workspace">${menuHeader('图层队列')}<div class="desk layers-desk">${tools()}${batchNav()}<section class="panel"><div class="tabs"><button aria-selected="true">任务队列</button><button data-demo="显示图片作品">已生成作品</button></div>${filterbar()}${selectionBar()}${taskRows()}<div class="queue-footer"><span>完成 2 / 12 · 16%</span><span>等待任务可批量处理</span></div>${miniPreview()}</section>${inspector()}</div>${footer()}</main>`;}
