@@ -48,13 +48,13 @@ $env:COMFYUI_DEDICATED = '1'
 
 绑定格式为 `节点ID.输入名`。支持 prompt、seed、width、height、steps、guidance_scale；不支持的参数可以省略绑定。输出使用 SaveImage PNG，`output_nodes` 指定保存节点 ID。量化模型需要匹配的工作流与节点，下载文件本身不代表可以推理。
 
-模型选择器位于提示词上方，提供 Z-Image-Turbo 与 SDXL Turbo。选择后自动设置默认尺寸、步数和 CFG，仅影响新任务。SDXL Turbo 默认 512×512、4步、CFG=1，建议英文提示词。权重下载命令：`G:\code\ComfyUI_windows_portable\python_embeded\python.exe tools/download_sdxl.py`，路径为 `G:\AI\Models\sdxl-turbo`，安装后重启 ComfyUI 并刷新模型列表。
+模型选择器提供 Z-Image-Turbo、SDXL Turbo、Qwen-Image 2.1 INT8 与 FLUX.2 klein 4B FP8。切换后设置默认参数，并同步更新待执行任务；正在生成和已完成的任务不变。SDXL Turbo 默认 512×512、4步、CFG=1，建议英文提示词。权重下载命令：`G:\code\ComfyUI_windows_portable\python_embeded\python.exe tools/download_sdxl.py`，路径为 `G:\AI\Models\sdxl-turbo`；这些是开发机路径，其他电脑需调整。安装后重启 ComfyUI 并刷新模型列表。
 
 每批最多 1000 条非空提示词，每条最长 20000 字符；超过限制会显示具体原因。
 
 ## 队列与恢复语义
 
-- 每个任务保存独立工作流快照，之后切换方案不会改变已排队任务。
+- 每个任务保存独立工作流快照；切换模型会重新绑定待执行任务并更新默认参数，不改变正在生成或已完成的任务。
 - 本工作台每次向 ComfyUI 提交一个任务，排序操作只影响未提交任务。
 - 暂停不取消当前任务；即时停止取消当前任务并暂停队列，取消的任务变为“已跳过”。
 - SQLite 位于 `data/studio.sqlite3`。重启后队列默认暂停，仍核对已提交任务的远端结果。
@@ -71,7 +71,7 @@ $env:COMFYUI_DEDICATED = '1'
 node --check static/index.js
 ```
 
-测试覆盖工作流绑定、种子0、恢复、响应丢失、未确认任务、共享停止保护和图库持久化。真实出图需要三个模型全部安装且 ComfyUI 能正常使用 CUDA。
+测试覆盖工作流绑定、种子0、恢复、响应丢失、未确认任务、共享停止保护和图库持久化。真实出图只需安装所选方案要求的权重与节点，并确保 ComfyUI 能正常推理，不必安装全部模型。
 
 ## 本次验收结果（2026-10-09）
 

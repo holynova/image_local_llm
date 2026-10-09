@@ -173,6 +173,12 @@ const TRANSLATIONS = {
         comfyCfgDesc: 'Use the generation workflow’s default CFG.',
         title: "Local Image Studio",
         navTitle: "Local Image Studio",
+        workspaceTab: "Workspace",
+        latestResult: "Latest result",
+        viewerTitle: "Image preview",
+        latestEmpty: "Completed images will appear here.",
+        latestDetails: "View details",
+        resultsTab: "Results",
         resetRecommended: "Restore recommended values",
         statusConnecting: "Connecting...",
         statusReady: "Server: Connected (Ready)",
@@ -326,6 +332,12 @@ const TRANSLATIONS = {
         comfyCfgDesc: '使用生成方案的默认 CFG 值。',
         title: "本地绘图工作台",
         navTitle: "本地绘图工作台",
+        workspaceTab: "工作区",
+        latestResult: "最新结果",
+        viewerTitle: "图片预览",
+        latestEmpty: "生成完成后，最新图片会显示在这里。",
+        latestDetails: "查看详情",
+        resultsTab: "作品结果",
         resetRecommended: "恢复推荐值",
         statusConnecting: "正在连接...",
         statusReady: "服务器: 已连接 (空闲)",
@@ -518,6 +530,8 @@ document.addEventListener('DOMContentLoaded', () => {
     setLanguage(currentLang);
     updateHistoryUI();
     setupEventListeners();
+    setupWorkspaceTabs();
+    setupWorkspaceResizing();
     addLog(TRANSLATIONS[currentLang].logInitialized, 'system');
     
     // Restore timer state on load
@@ -761,12 +775,13 @@ function setupEventListeners() {
     });
 
     // Clear Gallery
-    clearGalleryBtn.addEventListener('click', () => {
-        if (confirm(TRANSLATIONS[currentLang].confirmClearGallery)) {
+    clearGalleryBtn.addEventListener('click', async () => {
+        if (await appConfirm(TRANSLATIONS[currentLang].confirmClearGallery)) {
             document.querySelectorAll('.group-image-item').forEach(item => hiddenGalleryFiles.add(item.dataset.filename));
             localStorage.setItem('hiddenGalleryFiles', JSON.stringify([...hiddenGalleryFiles]));
             galleryGrid.innerHTML = '';
             renderedFilenames.clear();
+            updateLatestPreview([]);
             addLog(TRANSLATIONS[currentLang].logGalleryCleared, 'system');
         }
     });
@@ -788,7 +803,24 @@ function setupEventListeners() {
     }
 
     // Lightbox close handlers
+    ['like', 'dislike'].forEach(rating => {
+        const button = document.getElementById(rating === 'like' ? 'viewerLike' : 'viewerDislike');
+        button.innerHTML = ICONS[rating];
+        button.addEventListener('click', () => {
+            if (!activeLightboxItem) return;
+            const filename = activeLightboxItem.filename;
+            const next = getImageRating(filename) === rating ? null : rating;
+            const wrapper = [...document.querySelectorAll('.group-image-item')].find(el => el.dataset.filename === filename);
+            setImageRating(filename, next, wrapper);
+            applyGalleryFilter();
+        });
+    });
     lightboxClose.addEventListener('click', closeLightbox);
+    document.getElementById('viewerInfo').addEventListener('click', () => {
+        const metadata = document.getElementById('viewerMetadata');
+        metadata.hidden = !metadata.hidden;
+        document.getElementById('viewerInfo').setAttribute('aria-expanded', String(!metadata.hidden));
+    });
     lightboxOverlay.addEventListener('click', (e) => {
         if (e.target === lightboxOverlay) closeLightbox();
     });
@@ -814,8 +846,9 @@ function setupEventListeners() {
     if (lightboxRegenBtn) {
         lightboxRegenBtn.addEventListener('click', () => {
             if (activeLightboxItem) {
+                const item = activeLightboxItem;
                 closeLightbox();
-                regeneratePrompt(activeLightboxItem, false); // use random seed for new variation
+                regeneratePrompt(item, false); // use random seed for new variation
             }
         });
     }
@@ -823,6 +856,16 @@ function setupEventListeners() {
     // Handle ESC and Arrow navigation keys for Lightbox
     document.addEventListener('keydown', (e) => {
         if (lightboxOverlay.style.display === 'flex') {
+            if (e.key === 'Tab') {
+                const controls = [...lightboxOverlay.querySelectorAll('button:not(:disabled), a[href]')]
+                    .filter(el => el.getClientRects().length);
+                const first = controls[0], last = controls[controls.length - 1];
+                if (e.shiftKey && (document.activeElement === first || document.activeElement === lightboxOverlay)) {
+                    e.preventDefault(); last?.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault(); first?.focus();
+                }
+            }
             if (e.key === 'Escape') {
                 closeLightbox();
             } else if (e.key === 'ArrowLeft') {
@@ -881,7 +924,7 @@ function setupEventListeners() {
 
 // Restart the server and wait for it to come back online
 async function handleRestartServer() {
-    if (!confirm(TRANSLATIONS[currentLang].confirmRestart)) return;
+    if (!await appConfirm(TRANSLATIONS[currentLang].confirmRestart)) return;
 
     const btn = document.getElementById('restartServerBtn');
     const btnSpan = btn ? btn.querySelector('span') : null;
@@ -956,7 +999,7 @@ async function handleRestartServer() {
 
 // Stop the server process
 async function handleStopServer() {
-    if (!confirm(TRANSLATIONS[currentLang].confirmStop)) return;
+    if (!await appConfirm(TRANSLATIONS[currentLang].confirmStop)) return;
 
     const btn = document.getElementById('stopServerBtn');
     const btnSpan = btn ? btn.querySelector('span') : null;
@@ -1112,6 +1155,64 @@ async function syncQueueState() {
 }
 
 // Update the Queue Table, badging, and button visibility based on backend state
+function estimatedTaskProgress(item, history) {
+    if (item.status === 'completed') return {percent: 100, average: null};
+    if (item.status !== 'generating') return {percent: null, average: null};
+    const unique = new Map();
+    for (const sample of history) {
+        if (sample.status === 'completed' && sample.workflow_id === item.workflow_id &&
+            Number.isFinite(Number(sample.elapsed)) && Number(sample.elapsed) > 0) {
+            unique.set(sample.id || sample.filename, sample);
+        }
+    }
+    const sameModel = [...unique.values()];
+    const exact = sameModel.filter(sample => sample.width === item.width && sample.height === item.height && sample.steps === item.steps);
+    const recent = (exact.length ? exact : sameModel)
+        .sort((a, b) => Number(b.started_at || b.created_at || 0) - Number(a.started_at || a.created_at || 0)).slice(0, 30);
+    if (!recent.length) return {percent: null, average: null};
+    const average = recent.reduce((sum, sample) => sum + Number(sample.elapsed), 0) / recent.length;
+    const elapsed = Math.max(0, Number(item.elapsed) || 0);
+    return {percent: Math.min(99, Math.floor(elapsed / average * 100)), average};
+}
+
+function appConfirm(message) {
+    const dialog = document.getElementById('confirmDialog');
+    // Prevent overlapping confirmations from authorizing a different operation.
+    if (dialog.open) return Promise.resolve(false);
+    const returnFocus = document.activeElement;
+    const cancel = document.getElementById('confirmCancel');
+    const accept = document.getElementById('confirmAccept');
+    document.getElementById('confirmTitle').textContent = currentLang === 'zh' ? '确认操作' : 'Confirm action';
+    document.getElementById('confirmMessage').textContent = message;
+    cancel.textContent = currentLang === 'zh' ? '取消' : 'Cancel';
+    accept.textContent = currentLang === 'zh' ? '确认' : 'Confirm';
+    return new Promise(resolve => {
+        const finish = result => {
+            cancel.removeEventListener('click', onCancel);
+            accept.removeEventListener('click', onAccept);
+            dialog.removeEventListener('cancel', onEscape);
+            dialog.removeEventListener('click', onBackdrop);
+            dialog.close();
+            if (returnFocus?.isConnected) returnFocus.focus({preventScroll: true});
+            resolve(result);
+        };
+        const onCancel = () => finish(false);
+        const onAccept = () => finish(true);
+        const onEscape = event => { event.preventDefault(); finish(false); };
+        const onBackdrop = event => {
+            if (event.target !== dialog) return;
+            const rect = dialog.getBoundingClientRect();
+            if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) finish(false);
+        };
+        cancel.addEventListener('click', onCancel);
+        accept.addEventListener('click', onAccept);
+        dialog.addEventListener('cancel', onEscape);
+        dialog.addEventListener('click', onBackdrop);
+        dialog.showModal();
+        cancel.focus();
+    });
+}
+
 function updateQueueUI() {
     if (!queueCountBadge) return;
     shuffleQueueBtn.disabled = shuffleInFlight || promptQueue.filter(item => item.status === 'pending').length < 2;
@@ -1126,7 +1227,7 @@ function updateQueueUI() {
     
     if (totalCount > 0) {
         if (queueProgressContainer) queueProgressContainer.style.display = 'flex';
-        const percentage = Math.round((finishedCount / totalCount) * 100);
+        const percentage = Math.min(finishedCount === totalCount ? 100 : 99, Math.round((finishedCount / totalCount) * 100));
         if (queueProgressValue) {
             queueProgressValue.textContent = `${finishedCount} / ${totalCount} (${percentage}%)`;
         }
@@ -1178,7 +1279,9 @@ function updateQueueUI() {
     }
 
     queueList.innerHTML = '';
+    const timingHistory = [...galleryImages, ...promptQueue];
     promptQueue.forEach((item, index) => {
+        const progress = estimatedTaskProgress(item, timingHistory);
         const row = document.createElement('div');
         row.className = `queue-row ${item.status === 'generating' ? 'generating' : ''}`;
         row.id = `row_${item.id}`;
@@ -1256,12 +1359,13 @@ function updateQueueUI() {
             <span class="col-num">${index + 1}</span>
             <span class="col-prompt" title="${escapeHtml(item.prompt)}">${escapeHtml(item.prompt)}</span>
             <span class="col-status">
-                <span class="q-badge ${badgeClass}" title="${escapeHtml(item.error_msg || item.workflow_id || '')}">${statusText}${item.progress?.max ? ' ' + Math.round(item.progress.value / item.progress.max * 100) + '%' : ''}</span>
+                <span class="q-badge ${badgeClass}" title="${escapeHtml(item.error_msg || item.workflow_id || '')}">${statusText}${item.status === 'generating' && progress.percent !== null ? ` ≈${progress.percent}%` : ''}</span>
             </span>
             <span class="col-time" id="time_${item.id}">
                 ${timeDisplay}
             </span>
             ${rowActionsHtml}
+            ${item.status === 'generating' ? `<div class="row-progress-container" role="progressbar" aria-label="${currentLang === 'zh' ? '预计生成进度' : 'Estimated generation progress'}" aria-valuemin="0" aria-valuemax="100" ${progress.percent === null ? '' : `aria-valuenow="${progress.percent}"`} title="${progress.average ? (currentLang === 'zh' ? '历史平均耗时' : 'Historical average') + ': ' + progress.average.toFixed(1) + 's' : (currentLang === 'zh' ? '暂无历史耗时，等待完成' : 'No timing history yet')} "><div class="row-progress-bar ${progress.percent === null ? 'indeterminate' : ''}" style="width:${progress.percent === null ? 25 : progress.percent}%"></div></div>` : ''}
         `;
 
         // Attach row action button listeners
@@ -1328,7 +1432,36 @@ function syncGalleryUI() {
     });
 
     // Re-apply current filter after gallery update
+    updateLatestPreview(completedItems);
     applyGalleryFilter();
+}
+
+function newestCompletedImage(items) {
+    return items.reduce((latest, item) => {
+        const finished = value => Number(value.started_at || value.created_at || 0) + Number(value.elapsed || 0);
+        return !latest || finished(item) >= finished(latest) ? item : latest;
+    }, null);
+}
+
+function updateLatestPreview(items) {
+    const button = document.getElementById('latestImageButton');
+    if (!button) return;
+    const item = newestCompletedImage(items);
+    const image = document.getElementById('latestImage');
+    document.getElementById('latestEmpty').hidden = !!item;
+    document.getElementById('latestCaption').hidden = !item;
+    button.hidden = !item;
+    if (!item) { image.removeAttribute('src'); button.onclick = null; return; }
+    const url = `/outputs/${item.filename}`;
+    if (image.getAttribute('src') !== url) image.src = url;
+    image.alt = item.prompt;
+    button.setAttribute('aria-label', TRANSLATIONS[currentLang].latestDetails);
+    document.getElementById('latestModel').textContent = `${imageModelLabel(item)} · ${item.width} × ${item.height}`;
+    const prompt = document.getElementById('latestPrompt');
+    prompt.textContent = item.prompt;
+    prompt.title = item.prompt;
+    button.onclick = () => openLightbox(item);
+    document.getElementById('latestDetailsButton').onclick = () => openLightbox(item);
 }
 
 // Add prompts to backend queue
@@ -1481,7 +1614,7 @@ async function handleStopQueue() {
 }
 
 async function handleClearQueue() {
-    if (!confirm(TRANSLATIONS[currentLang].confirmClearQueue)) {
+    if (!await appConfirm(TRANSLATIONS[currentLang].confirmClearQueue)) {
         return;
     }
     try {
@@ -1550,8 +1683,15 @@ function imageModelLabel(item) {
         || TRANSLATIONS[currentLang].unknownModel;
 }
 
+let lightboxReturnFocus = null;
 function openLightbox(item) {
+    if (lightboxOverlay.style.display !== 'flex') {
+        lightboxReturnFocus = document.activeElement;
+        document.getElementById('viewerMetadata').hidden = true;
+        document.getElementById('viewerInfo').setAttribute('aria-expanded', 'false');
+    }
     activeLightboxItem = item;
+    updateViewerRating();
     lightboxImg.src = `/outputs/${item.filename}`;
     metaPrompt.textContent = item.prompt;
     document.getElementById('metaModel').textContent = imageModelLabel(item);
@@ -1561,6 +1701,8 @@ function openLightbox(item) {
     metaTime.textContent = `${item.elapsed.toFixed(2)} seconds`;
     lightboxDownloadBtn.href = `/outputs/${item.filename}`;
     lightboxDownloadBtn.setAttribute('download', `gen_seed_${item.seed_used}.png`);
+    document.getElementById('viewerDownload').href = lightboxDownloadBtn.href;
+    document.getElementById('viewerDownload').download = `gen_seed_${item.seed_used}.png`;
     
     // Update navigation buttons based on current thumbnail index
     const allThumbnails = Array.from(document.querySelectorAll('.group-image-item'));
@@ -1580,6 +1722,9 @@ function openLightbox(item) {
     }
     
     lightboxOverlay.style.display = 'flex';
+    document.querySelector('.app-container').inert = true;
+    document.getElementById('logsDrawer').inert = true;
+    lightboxClose.focus();
 }
 
 // Navigate lightbox index in visual order
@@ -1602,6 +1747,9 @@ function navigateLightbox(direction) {
 function closeLightbox() {
     activeLightboxItem = null;
     lightboxOverlay.style.display = 'none';
+    document.querySelector('.app-container').inert = false;
+    document.getElementById('logsDrawer').inert = false;
+    if (lightboxReturnFocus?.isConnected) lightboxReturnFocus.focus({preventScroll: true});
     lightboxImg.src = ''; // Clear source to free memory
 }
 
@@ -1785,6 +1933,18 @@ function getImageRating(filename) {
     return ratings[filename] || null; // 'like' | 'dislike' | null
 }
 
+function updateViewerRating() {
+    const rating = activeLightboxItem ? getImageRating(activeLightboxItem.filename) : null;
+    ['like', 'dislike'].forEach(value => {
+        const button = document.getElementById(value === 'like' ? 'viewerLike' : 'viewerDislike');
+        const selected = rating === value;
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-pressed', String(selected));
+        button.setAttribute('aria-label', currentLang === 'zh' ? (value === 'like' ? '点赞' : '点踩') : (value === 'like' ? 'Like' : 'Dislike'));
+        button.title = button.getAttribute('aria-label');
+    });
+}
+
 function setImageRating(filename, rating, wrapperEl) {
     const ratings = JSON.parse(localStorage.getItem('imageRatings') || '{}');
     if (rating === null) {
@@ -1793,6 +1953,8 @@ function setImageRating(filename, rating, wrapperEl) {
         ratings[filename] = rating;
     }
     localStorage.setItem('imageRatings', JSON.stringify(ratings));
+    if (activeLightboxItem?.filename === filename) updateViewerRating();
+    if (!wrapperEl) return;
 
     // Update DOM classes and button active states
     wrapperEl.classList.remove('rated-like', 'rated-dislike');
@@ -1927,7 +2089,15 @@ function updateHistoryUI() {
         item.type = 'button';
         item.className = 'history-item';
         item.title = prompt;
-        item.textContent = prompt.replace(/\n/g, ' ｜ ');
+        const text = document.createElement('span');
+        text.className = 'history-preview';
+        text.textContent = prompt.replace(/\r?\n/g, ' ｜ ');
+        const count = document.createElement('span');
+        count.className = 'history-line-count';
+        const lines = prompt.split(/\r?\n/).filter(line => line.trim()).length;
+        count.textContent = currentLang === 'zh' ? `${lines} 行` : `${lines} lines`;
+        item.setAttribute('aria-label', `${count.textContent}：${text.textContent}`);
+        item.append(text, count);
         item.addEventListener('click', () => {
             loadHistoryPrompt(prompt);
         });
@@ -1936,6 +2106,99 @@ function updateHistoryUI() {
 }
 
 // Load selected prompt into textarea
+function moveWorkspaceDivider(widths, index, delta) {
+    const minimums = [320, 320, 360];
+    const result = [...widths];
+    const movement = Math.max(minimums[index] - widths[index], Math.min(delta, widths[index + 1] - minimums[index + 1]));
+    result[index] += movement;
+    result[index + 1] -= movement;
+    return result;
+}
+
+function setupWorkspaceResizing() {
+    const grid = document.getElementById('mainWorkspace');
+    const handles = [...grid.querySelectorAll('.workspace-divider')];
+    const panels = [grid.querySelector('.input-panel'), grid.querySelector('.latest-panel'), grid.querySelector('.right-column')];
+    const defaults = [30, 46, 24];
+    let ratios = defaults;
+    try {
+        const saved = JSON.parse(localStorage.getItem('workspaceColumnWidths'));
+        if (Array.isArray(saved) && saved.length === 3 && saved.every(n => Number.isFinite(n) && n > 0)) ratios = saved;
+    } catch (_) { /* Invalid saved settings fall back to the default layout. */ }
+    const apply = widths => {
+        ['left', 'center', 'right'].forEach((name, i) => grid.style.setProperty(`--column-${name}`, `${widths[i]}fr`));
+        handles.forEach((handle, index) => {
+            handle.setAttribute('aria-valuemin', '0');
+            handle.setAttribute('aria-valuemax', '100');
+            handle.setAttribute('aria-valuenow', String(Math.round(widths[index] / (widths[index] + widths[index + 1]) * 100)));
+        });
+    };
+    const readWidths = () => panels.map(panel => panel.getBoundingClientRect().width);
+    const save = widths => {
+        ratios = widths;
+        try { localStorage.setItem('workspaceColumnWidths', JSON.stringify(widths)); } catch (_) {}
+    };
+    const reset = () => { apply(defaults); save(defaults); };
+    apply(ratios);
+    handles.forEach((handle, index) => {
+        let drag = null;
+        handle.addEventListener('pointerdown', event => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            drag = {start: event.clientX, widths: readWidths()};
+            handle.setPointerCapture(event.pointerId);
+            handle.focus();
+            document.body.classList.add('workspace-resizing');
+        });
+        handle.addEventListener('pointermove', event => {
+            if (drag) apply(moveWorkspaceDivider(drag.widths, index, event.clientX - drag.start));
+        });
+        const finish = () => {
+            if (!drag) return;
+            save(readWidths());
+            drag = null;
+            document.body.classList.remove('workspace-resizing');
+        };
+        handle.addEventListener('pointerup', finish);
+        handle.addEventListener('pointercancel', finish);
+        handle.addEventListener('lostpointercapture', finish);
+        handle.addEventListener('dblclick', reset);
+        handle.addEventListener('keydown', event => {
+            if (event.key === 'Home') { event.preventDefault(); reset(); return; }
+            if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+            event.preventDefault();
+            const widths = moveWorkspaceDivider(readWidths(), index, (event.key === 'ArrowLeft' ? -1 : 1) * (event.shiftKey ? 40 : 16));
+            apply(widths); save(widths);
+        });
+    });
+}
+
+function setupWorkspaceTabs() {
+    const tabs = [...document.querySelectorAll('.workspace-tabs [role="tab"]')];
+    const activate = (tab, focus = false) => {
+        tabs.forEach(item => {
+            const selected = item === tab;
+            item.setAttribute('aria-selected', String(selected));
+            item.tabIndex = selected ? 0 : -1;
+            document.getElementById(item.getAttribute('aria-controls')).hidden = !selected;
+        });
+        if (focus) tab.focus();
+    };
+    tabs.forEach((tab, index) => {
+        tab.addEventListener('click', () => activate(tab));
+        tab.addEventListener('keydown', event => {
+            let target;
+            if (event.key === 'ArrowRight') target = tabs[(index + 1) % tabs.length];
+            if (event.key === 'ArrowLeft') target = tabs[(index + tabs.length - 1) % tabs.length];
+            if (event.key === 'Home') target = tabs[0];
+            if (event.key === 'End') target = tabs[tabs.length - 1];
+            if (target) { event.preventDefault(); activate(target, true); }
+        });
+    });
+    // The skip link should always reach the actual workspace, including from Results.
+    document.querySelector('.skip-link').addEventListener('click', () => activate(tabs[0]));
+}
+
 function loadHistoryPrompt(prompt) {
     const currentVal = promptTextArea.value.trim();
     if (currentVal === '') {

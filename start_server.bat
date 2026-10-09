@@ -1,7 +1,7 @@
 @echo off
-title Z-Image-Turbo Studio Server
+title Local Image Studio Server
 echo ===================================================
-echo   Z-Image-Turbo Studio - Server Starter
+echo   Local Image Studio - Server Starter
 echo ===================================================
 echo.
 

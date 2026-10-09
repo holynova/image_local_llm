@@ -1,0 +1,14 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('static/index.js', 'utf8');
+const start = source.indexOf('function newestCompletedImage(');
+const end = source.indexOf('function updateLatestPreview(', start);
+const context = {};
+vm.runInNewContext(source.slice(start, end), context);
+const earlier = {filename: 'a.png', started_at: 100, elapsed: 10};
+const later = {filename: 'b.png', started_at: 150, elapsed: 20};
+assert.equal(context.newestCompletedImage([later, earlier]), later);
+assert.equal(context.newestCompletedImage([]), null);
+assert.equal(context.newestCompletedImage([{created_at: 10}, {created_at: 20}]).created_at, 20);
+console.log('Latest preview: completion order and empty state passed.');

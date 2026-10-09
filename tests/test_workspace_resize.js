@@ -1,0 +1,13 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const source = fs.readFileSync('static/index.js', 'utf8');
+const start = source.indexOf('function moveWorkspaceDivider(');
+const context = {};
+vm.runInNewContext(source.slice(start, source.indexOf('function setupWorkspaceResizing(', start)), context);
+const move = context.moveWorkspaceDivider;
+assert.equal(move([560,860,448],0,40).join(','), '600,820,448');
+assert.equal(move([560,860,448],0,-1000).join(','), '320,1100,448');
+assert.equal(move([560,860,448],1,1000).join(','), '560,948,360');
+assert.equal(move([560,860,448],1,-1000).join(','), '560,320,988');
+console.log('Workspace resizing: adjacent widths, minimums and total-width preservation passed.');
